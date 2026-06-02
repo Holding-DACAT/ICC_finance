@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/cron/parc-recompute", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/orias-reminders", "schedule": "0 7 * * 1" },
+    { "path": "/api/cron/redevance-recompute", "schedule": "0 5 1 * *" }
+  ]
+}

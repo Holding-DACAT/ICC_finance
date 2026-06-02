@@ -1,0 +1,210 @@
+// Schéma Prisma — Outil GESTION RH ICC Finance
+// Base : PostgreSQL. Adapter/migrer via `prisma migrate dev`.
+// Ce schéma est un point de départ : Claude Code peut l'affiner.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Neon pooled (runtime Vercel)
+  directUrl = env("DIRECT_URL")   // Neon direct (migrations)
+}
+
+// ----------------------------- Énumérations -----------------------------
+enum NetworkType { FRANCHISE FILIALE AFFILIE }
+enum AgencyType { FRANCHISE FILIALE }
+enum ContractType { CDI CDD MANDAT FRANCHISE }
+enum MemberStatus { ACTIF INACTIF }
+enum LicenseTier { SILVER GOLD }
+enum OriasCategory { COBSP MOBSP MIOBSP COA MIAS MIA CIF IFP }
+enum ComplianceStatus { A_JOUR A_RENOUVELER EXPIRE }
+enum OnboardingStatus { AUCUN EN_COURS TERMINE }
+enum OnboardingStepStatus { A_FAIRE EN_COURS FAIT }
+enum Role { ADMIN RH IT DIRECTEUR_AGENCE LECTURE }
+enum AuditAction { CREATE UPDATE DELETE VIEW }
+
+// ------------------------------- Agence ---------------------------------
+model Agency {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  type              AgencyType
+  status            MemberStatus @default(ACTIF)
+  legalName         String?
+  legalForm         String?       // SAS, SARL...
+  address           String?
+  oriasNumber       String?
+  rcProInsurer      String?
+  rcProExpiry       DateTime?
+  guaranteeAmount   Int?
+  guaranteeExpiry   DateTime?
+  sharePointUrl     String?
+  redevanceExcluded Boolean  @default(false) // « sans ICC Dev. »
+  members           Member[]
+  directors         AgencyDirector[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Directeur(s) d'agence (un membre peut diriger plusieurs agences ; une agence peut avoir plusieurs directeurs)
+model AgencyDirector {
+  id        String @id @default(cuid())
+  agency    Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId  String
+  member    Member @relation("DirectedAgencies", fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  @@unique([agencyId, memberId])
+}
+
+// ------------------------------- Membre ---------------------------------
+model Member {
+  id            String   @id @default(cuid())
+  civility      String?
+  firstName     String
+  lastName      String
+  email         String   @unique
+  phone         String?
+  photoUrl      String?
+  contractType  ContractType
+  functionTitle String           // ex. "Mandataire", "Directeur d'agence"
+  functionSub   String?          // ex. "MIOBSP & MIA"
+  network       NetworkType
+  status        MemberStatus @default(ACTIF)
+  arrivalDate   DateTime
+  departureDate DateTime?
+  sharePointUrl String?
+  adObjectId    String?          // identifiant Azure AD
+
+  agency        Agency   @relation(fields: [agencyId], references: [id])
+  agencyId      String
+  directedAgencies AgencyDirector[] @relation("DirectedAgencies")
+
+  orias         OriasRegistration?
+  trainings     Training[]
+  computers     Computer[]       @relation("AssignedComputers")
+  onboarding    OnboardingProcess?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([agencyId])
+  @@index([status])
+}
+
+// ----------------------------- Ordinateur -------------------------------
+model Computer {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  model            String
+  serialNumber     String   @unique
+  registrationDate DateTime
+  lastSyncDate     DateTime?
+  diskFreePct      Int      @default(0)
+  licenseTier      LicenseTier?
+  source           String?  // agent de parc, Intune, manuel
+  assignedMember   Member?  @relation("AssignedComputers", fields: [assignedMemberId], references: [id])
+  assignedMemberId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([assignedMemberId])
+  // statut (ACTIF / A_RENOUVELER / EXPIRE) = dérivé de registrationDate, calculé côté service.
+}
+
+// --------------------------- ORIAS / conformité -------------------------
+model OriasRegistration {
+  id               String   @id @default(cuid())
+  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId         String   @unique
+  oriasNumber      String?
+  categories       OriasCategory[]
+  registrationDate DateTime?
+  renewalDate      DateTime?
+  status           ComplianceStatus @default(A_JOUR)
+  rcProInsurer     String?
+  rcProPolicy      String?
+  rcProExpiry      DateTime?
+  guaranteeAmount  Int?
+  guaranteeExpiry  DateTime?
+  capacityProOk    Boolean  @default(false)
+  honorabilityOk   Boolean  @default(false)
+  honorabilityDate DateTime?
+  updatedAt        DateTime @updatedAt
+}
+
+// ------------------------------ Formation -------------------------------
+model Training {
+  id             String   @id @default(cuid())
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId       String
+  year           Int
+  requiredHours  Int      @default(15) // 15 DDA / 7 DCI
+  completedHours Int      @default(0)
+  sessions       TrainingSession[]
+  @@unique([memberId, year])
+}
+
+model TrainingSession {
+  id          String   @id @default(cuid())
+  training    Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId  String
+  date        DateTime
+  title       String
+  hours       Int
+  provider    String?
+  certificateUrl String?
+}
+
+// ------------------------------ Onboarding ------------------------------
+model OnboardingProcess {
+  id           String   @id @default(cuid())
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId     String   @unique
+  status       OnboardingStatus @default(AUCUN)
+  progress     Int      @default(0)
+  assignedTo   User?    @relation(fields: [assignedToId], references: [id])
+  assignedToId String?
+  steps        OnboardingStep[]
+  updatedAt    DateTime @updatedAt
+}
+
+model OnboardingStep {
+  id          String   @id @default(cuid())
+  process     OnboardingProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  processId   String
+  label       String
+  order       Int
+  status      OnboardingStepStatus @default(A_FAIRE)
+  doneAt      DateTime?
+  doneById    String?
+}
+
+// --------------------------- Compte applicatif --------------------------
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  role           Role     @default(LECTURE)
+  scopedAgencyId String?  // périmètre pour DIRECTEUR_AGENCE
+  adObjectId     String?
+  onboardings    OnboardingProcess[]
+  createdAt      DateTime @default(now())
+}
+
+// ------------------------------ Audit / Param ---------------------------
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  entity    String
+  entityId  String?
+  diff      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+  @@index([entity, entityId])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique   // ex. redevance.silverHT, redevance.goldHT, tva, onboarding.defaultSteps
+  value Json
+}
