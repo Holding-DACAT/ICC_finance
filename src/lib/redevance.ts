@@ -35,7 +35,28 @@ export interface RedevanceResult {
   available: boolean;
 }
 
-const DEFAULTS: RedevanceParams = { silverHT: 58.33, goldHT: 112.5, tvaRate: 0.2 };
+export const DEFAULTS: RedevanceParams = { silverHT: 58.33, goldHT: 112.5, tvaRate: 0.2 };
+
+/** Calcul pur d'une ligne de redevance (testable sans base). */
+export function computeRedevanceLine(
+  silver: number,
+  gold: number,
+  params: RedevanceParams,
+): Omit<RedevanceRow, "agencyId" | "agencyName" | "silver" | "gold"> {
+  const silverHT = silver * params.silverHT;
+  const goldHT = gold * params.goldHT;
+  const totalHT = silverHT + goldHT;
+  const totalTTC = totalHT * (1 + params.tvaRate);
+  const persons = silver + gold;
+  return {
+    silverHT,
+    goldHT,
+    totalHT,
+    totalTTC,
+    avgPerPersonHT: persons ? totalHT / persons : 0,
+    avgPerPersonTTC: persons ? totalTTC / persons : 0,
+  };
+}
 
 function num(value: unknown, fallback: number): number {
   return typeof value === "number" && !Number.isNaN(value) ? value : fallback;
@@ -92,22 +113,12 @@ export async function getRedevanceData(): Promise<RedevanceResult> {
         const counts = seedCounts?.[a.name]
           ? { silver: seedCounts[a.name][0], gold: seedCounts[a.name][1] }
           : (derived.get(a.id) ?? { silver: 0, gold: 0 });
-        const silverHT = counts.silver * params.silverHT;
-        const goldHT = counts.gold * params.goldHT;
-        const totalHT = silverHT + goldHT;
-        const totalTTC = totalHT * (1 + params.tvaRate);
-        const persons = counts.silver + counts.gold;
         return {
           agencyId: a.id,
           agencyName: a.name,
           silver: counts.silver,
           gold: counts.gold,
-          silverHT,
-          goldHT,
-          totalHT,
-          totalTTC,
-          avgPerPersonHT: persons ? totalHT / persons : 0,
-          avgPerPersonTTC: persons ? totalTTC / persons : 0,
+          ...computeRedevanceLine(counts.silver, counts.gold, params),
         };
       });
 

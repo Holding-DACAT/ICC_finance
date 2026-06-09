@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BadgeEuro,
+  Bell,
   Building2,
   LayoutDashboard,
   LogOut,
   Monitor,
+  ScrollText,
   Users,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -20,6 +22,11 @@ const NAV = [
   { href: "/agences", label: "Agences", icon: Building2 },
   { href: "/ordinateurs", label: "Ordinateurs", icon: Monitor },
   { href: "/redevance", label: "Redevance info.", icon: BadgeEuro },
+] as const;
+
+const NAV_SECONDARY = [
+  { href: "/alertes", label: "Alertes", icon: Bell },
+  { href: "/journal", label: "Journal d'audit", icon: ScrollText },
 ] as const;
 
 interface AppSidebarProps {
@@ -47,6 +54,27 @@ export function AppSidebar({ userName, roleLabel }: AppSidebarProps) {
       <nav className="flex flex-col gap-0.5">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition-colors",
+                active
+                  ? "bg-white/[0.09] text-white"
+                  : "text-text-soft hover:bg-white/5 hover:text-white",
+              )}
+            >
+              <Icon className="size-[18px]" /> {label}
+            </Link>
+          );
+        })}
+
+        <div className="mb-1 mt-4 px-3 text-[9.5px] uppercase tracking-[1px] text-text-faint">
+          Administration
+        </div>
+        {NAV_SECONDARY.map(({ href, label, icon: Icon }) => {
+          const active = pathname.startsWith(href);
           return (
             <Link
               key={href}
