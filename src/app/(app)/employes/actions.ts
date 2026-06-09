@@ -53,6 +53,7 @@ export async function createMember(values: MemberFormValues): Promise<ActionResu
 
   try {
     const member = await prisma.member.create({ data });
+    await startOnboarding(member.id, userId);
     await writeAudit({
       userId,
       action: "CREATE",
@@ -61,12 +62,43 @@ export async function createMember(values: MemberFormValues): Promise<ActionResu
       diff: { created: { email: member.email, agencyId: member.agencyId } },
     });
     revalidatePath("/employes");
+    revalidatePath("/");
     return { ok: true, id: member.id };
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return { ok: false, error: "Un membre avec cet email existe déjà." };
     }
     return { ok: false, error: "Échec de la création du membre." };
+  }
+}
+
+const FALLBACK_STEPS = ["Création AD", "Boîte mail", "Attribution PC", "Accès SharePoint"];
+
+/** Déclenche un processus d'onboarding pour un nouveau membre (cf. lot 5). */
+async function startOnboarding(memberId: string, assignedToId?: string | null): Promise<void> {
+  try {
+    const setting = await prisma.setting.findUnique({
+      where: { key: "onboarding.defaultSteps" },
+    });
+    const labels = Array.isArray(setting?.value)
+      ? (setting?.value as string[])
+      : FALLBACK_STEPS;
+    // Vérifie que l'assigné est bien un compte applicatif existant (FK).
+    const assignee = assignedToId
+      ? await prisma.user.findUnique({ where: { id: assignedToId }, select: { id: true } })
+      : null;
+    await prisma.onboardingProcess.create({
+      data: {
+        memberId,
+        status: "EN_COURS",
+        progress: 0,
+        assignedToId: assignee?.id ?? null,
+        steps: { create: labels.map((label, idx) => ({ label, order: idx + 1 })) },
+      },
+    });
+  } catch (error) {
+    // L'onboarding ne doit pas faire échouer la création du membre.
+    console.error("Échec du déclenchement de l'onboarding :", error);
   }
 }
 
