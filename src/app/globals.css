@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Thème ICC Finance — indigo / orange (docs/03_CHARTE_UI.md).
+ * Variables exprimées en triplets HSL "H S% L%" pour rester compatibles
+ * avec les composants shadcn/ui.
+ */
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* Tokens sémantiques shadcn (mappés sur le thème indigo foncé) */
+    --background: 232 37% 33%; /* #343C72 */
+    --foreground: 0 0% 100%;
+    --card: 232 37% 37%; /* #3B4480 */
+    --card-foreground: 0 0% 100%;
+    --popover: 233 35% 41%; /* #454E8E */
+    --popover-foreground: 0 0% 100%;
+    --primary: 28 85% 54%; /* orange #EE8526 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 233 35% 41%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 233 35% 41%;
+    --muted-foreground: 232 37% 77%; /* #AEB4DA */
+    --accent: 233 35% 41%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 7 72% 56%; /* #E0533F */
+    --destructive-foreground: 0 0% 100%;
+    --border: 233 30% 48%;
+    --input: 233 30% 48%;
+    --ring: 28 85% 54%;
+
+    /* Tokens métier ICC Finance */
+    --brand-bg: 232 37% 33%;
+    --brand-sidebar: 231 39% 28%; /* #2C3463 */
+    --brand-card: 232 37% 37%;
+    --brand-card-soft: 233 35% 41%;
+
+    --kpi-orange: 28 85% 54%;
+    --kpi-pink: 332 79% 58%; /* #E83E8C */
+    --kpi-green: 134 49% 49%; /* #3FB95B */
+    --kpi-blue: 204 79% 54%; /* #2E9BE6 */
+
+    --state-success: 137 52% 52%; /* #46C46A */
+    --state-warning: 29 86% 55%; /* #EF8A2B */
+    --state-danger: 7 72% 56%; /* #E0533F */
+
+    --text-soft: 232 37% 77%;
+    --text-faint: 233 28% 64%; /* #8A90BD */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+}
+
+/* Barres d'espace disque & utilitaires de scroll horizontal pour tableaux denses */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

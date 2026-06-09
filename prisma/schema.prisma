@@ -13,17 +13,77 @@ datasource db {
 }
 
 // ----------------------------- Énumérations -----------------------------
-enum NetworkType { FRANCHISE FILIALE AFFILIE }
-enum AgencyType { FRANCHISE FILIALE }
-enum ContractType { CDI CDD MANDAT FRANCHISE }
-enum MemberStatus { ACTIF INACTIF }
-enum LicenseTier { SILVER GOLD }
-enum OriasCategory { COBSP MOBSP MIOBSP COA MIAS MIA CIF IFP }
-enum ComplianceStatus { A_JOUR A_RENOUVELER EXPIRE }
-enum OnboardingStatus { AUCUN EN_COURS TERMINE }
-enum OnboardingStepStatus { A_FAIRE EN_COURS FAIT }
-enum Role { ADMIN RH IT DIRECTEUR_AGENCE LECTURE }
-enum AuditAction { CREATE UPDATE DELETE VIEW }
+enum NetworkType {
+  FRANCHISE
+  FILIALE
+  AFFILIE
+}
+
+enum AgencyType {
+  FRANCHISE
+  FILIALE
+}
+
+enum ContractType {
+  CDI
+  CDD
+  MANDAT
+  FRANCHISE
+}
+
+enum MemberStatus {
+  ACTIF
+  INACTIF
+}
+
+enum LicenseTier {
+  SILVER
+  GOLD
+}
+
+enum OriasCategory {
+  COBSP
+  MOBSP
+  MIOBSP
+  COA
+  MIAS
+  MIA
+  CIF
+  IFP
+}
+
+enum ComplianceStatus {
+  A_JOUR
+  A_RENOUVELER
+  EXPIRE
+}
+
+enum OnboardingStatus {
+  AUCUN
+  EN_COURS
+  TERMINE
+}
+
+enum OnboardingStepStatus {
+  A_FAIRE
+  EN_COURS
+  FAIT
+}
+
+enum Role {
+  ADMIN
+  RH
+  IT
+  DIRECTEUR_AGENCE
+  LECTURE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+}
 
 // ------------------------------- Agence ---------------------------------
 model Agency {
