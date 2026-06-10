@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
   "buildCommand": "node scripts/vercel-build.mjs",
   "crons": [
     { "path": "/api/cron/parc-recompute", "schedule": "0 6 * * *" },
