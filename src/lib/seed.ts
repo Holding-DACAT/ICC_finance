@@ -7,6 +7,7 @@ import type {
   OnboardingStatus,
   OnboardingStepStatus,
   OriasCategory,
+  Prisma,
   PrismaClient,
 } from "@prisma/client";
 
@@ -171,22 +172,25 @@ export interface SeedSummary {
  * relancé sans dupliquer (purge des tables métier avant insertion).
  */
 export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
-  // Purge dans l'ordre des dépendances (les comptes applicatifs sont conservés/upsertés).
-  await prisma.trainingSession.deleteMany();
-  await prisma.training.deleteMany();
-  await prisma.onboardingStep.deleteMany();
-  await prisma.onboardingProcess.deleteMany();
-  await prisma.oriasRegistration.deleteMany();
-  await prisma.computer.deleteMany();
-  await prisma.agencyDirector.deleteMany();
-  await prisma.member.deleteMany();
-  await prisma.agency.deleteMany();
-  await prisma.setting.deleteMany();
+  // Toute la réinitialisation tient dans UNE transaction : TRUNCATE ... CASCADE
+  // vide les tables métier de façon atomique (insensible à l'ordre des clés
+  // étrangères) et son verrou exclusif sérialise deux exécutions concurrentes
+  // (ex. double déclenchement du lien de seed). User/AuditLog ne sont PAS vidés.
+  return prisma.$transaction((db) => seedWithin(db), {
+    maxWait: 20000,
+    timeout: 120000,
+  });
+}
+
+async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
+  await db.$executeRawUnsafe(
+    `TRUNCATE TABLE "TrainingSession", "Training", "OnboardingStep", "OnboardingProcess", "OriasRegistration", "Computer", "AgencyDirector", "Member", "Agency", "Setting" CASCADE`,
+  );
 
   // --- Agences ---
   const agencyIdByName = new Map<string, string>();
   for (const [name, type, , legalName, legalForm] of AGENCIES) {
-    const agency = await prisma.agency.create({
+    const agency = await db.agency.create({
       data: {
         name,
         type: mapAgencyType(type),
@@ -210,7 +214,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
     const categories = mapOriasCategories(orias);
     const hours = trainingHours(fonction, i);
 
-    const member = await prisma.member.create({
+    const member = await db.member.create({
       data: {
         firstName: prenom,
         lastName: nom,
@@ -242,7 +246,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
     if (categories.length) oriasCount++;
 
     if (hours > 0) {
-      await prisma.training.create({
+      await db.training.create({
         data: {
           memberId: member.id,
           year: 2026,
@@ -257,7 +261,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
   // --- Ordinateurs ---
   let computerCount = 0;
   for (const [name, model, serial, reg, sync, disk, userKey] of COMPUTERS) {
-    await prisma.computer.create({
+    await db.computer.create({
       data: {
         name,
         model,
@@ -281,7 +285,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
       // Le prototype écrit les directeurs en "Prénom NOM" ; nos clés sont "NOM Prénom".
       const memberId = findMemberIdByDisplayName(memberIdByKey, director);
       if (!memberId) continue;
-      await prisma.agencyDirector.create({ data: { agencyId, memberId } });
+      await db.agencyDirector.create({ data: { agencyId, memberId } });
       directorCount++;
     }
   }
@@ -291,7 +295,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
   for (const ob of ONBOARDINGS) {
     const memberId = memberIdByKey.get(ob.memberKey);
     if (!memberId) continue;
-    await prisma.onboardingProcess.create({
+    await db.onboardingProcess.create({
       data: {
         memberId,
         status: ob.status,
@@ -318,7 +322,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
     { key: "onboarding.defaultSteps", value: DEFAULT_ONBOARDING_STEPS },
   ];
   for (const s of settings) {
-    await prisma.setting.create({ data: { key: s.key, value: s.value as object } });
+    await db.setting.create({ data: { key: s.key, value: s.value as object } });
   }
 
   // --- Comptes applicatifs (upsert : conservés entre deux seeds) ---
@@ -327,7 +331,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
     { email: "damien.catala.diragce@axa.fr", name: "Damien Catala", role: "ADMIN" },
   ];
   for (const u of appUsers) {
-    await prisma.user.upsert({
+    await db.user.upsert({
       where: { email: u.email },
       update: { name: u.name, role: u.role },
       create: { email: u.email, name: u.name, role: u.role },
