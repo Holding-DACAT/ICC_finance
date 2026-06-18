@@ -38,6 +38,39 @@ function normalize(values: MemberFormValues) {
   };
 }
 
+/** true si au moins un champ d'habilitation/assurance est renseigné. */
+function hasOriasInput(v: MemberFormValues): boolean {
+  return Boolean(
+    v.oriasNumber ||
+      v.oriasLogin ||
+      (v.oriasCategories && v.oriasCategories.length > 0) ||
+      v.oriasRenewalDate ||
+      v.rcProInsurer ||
+      v.rcProPolicy ||
+      v.rcProExpiry ||
+      v.guaranteeAmount ||
+      v.guaranteeExpiry ||
+      v.assocLogin,
+  );
+}
+
+/** Données d'inscription ORIAS à upserter (les mots de passe ne sont jamais touchés ici). */
+function normalizeOrias(v: MemberFormValues) {
+  return {
+    oriasNumber: v.oriasNumber || null,
+    oriasLogin: v.oriasLogin || null,
+    categories: v.oriasCategories ?? [],
+    renewalDate: v.oriasRenewalDate ? new Date(v.oriasRenewalDate) : null,
+    status: v.complianceStatus ?? "A_JOUR",
+    rcProInsurer: v.rcProInsurer || null,
+    rcProPolicy: v.rcProPolicy || null,
+    rcProExpiry: v.rcProExpiry ? new Date(v.rcProExpiry) : null,
+    guaranteeAmount: v.guaranteeAmount ? Number.parseInt(v.guaranteeAmount, 10) : null,
+    guaranteeExpiry: v.guaranteeExpiry ? new Date(v.guaranteeExpiry) : null,
+    assocLogin: v.assocLogin || null,
+  };
+}
+
 export async function createMember(values: MemberFormValues): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user) return { ok: false, error: "Non authentifié." };
@@ -57,6 +90,11 @@ export async function createMember(values: MemberFormValues): Promise<ActionResu
 
   try {
     const member = await prisma.member.create({ data });
+    if (hasOriasInput(parsed.data)) {
+      await prisma.oriasRegistration.create({
+        data: { memberId: member.id, ...normalizeOrias(parsed.data) },
+      });
+    }
     await startOnboarding(member.id, userId);
     await writeAudit({
       userId,
@@ -114,7 +152,10 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
 
-  const existing = await prisma.member.findUnique({ where: { id } });
+  const existing = await prisma.member.findUnique({
+    where: { id },
+    include: { orias: { select: { id: true } } },
+  });
   if (!existing) return { ok: false, error: "Membre introuvable." };
 
   const data = normalize(parsed.data);
@@ -127,6 +168,15 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
 
   try {
     await prisma.member.update({ where: { id }, data });
+    // Habilitation : on upserte si des champs sont fournis ou si une inscription existe déjà.
+    if (hasOriasInput(parsed.data) || existing.orias) {
+      const oriasData = normalizeOrias(parsed.data);
+      await prisma.oriasRegistration.upsert({
+        where: { memberId: id },
+        update: oriasData,
+        create: { memberId: id, ...oriasData },
+      });
+    }
     await writeAudit({
       userId,
       action: "UPDATE",

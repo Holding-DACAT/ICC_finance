@@ -68,7 +68,7 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
         header: "Statut",
         accessorFn: (a) => a.status,
         cell: ({ row }) => (
-          <Badge variant={row.original.status === "ACTIF" ? "success" : "warning"}>
+          <Badge variant={row.original.status === "ACTIF" ? "success" : "danger"}>
             {row.original.status === "ACTIF" ? "ACTIVE" : "INACTIVE"}
           </Badge>
         ),
@@ -165,7 +165,19 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
         />
       </div>
 
-      <AgencyDetailSheet agency={detail} open={detailOpen} onOpenChange={setDetailOpen} />
+      <AgencyDetailSheet
+        agency={detail}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onEdit={
+          canWrite
+            ? (a) => {
+                setDetailOpen(false);
+                openEdit(a);
+              }
+            : undefined
+        }
+      />
       <AgencyFormDialog
         memberOptions={memberOptions}
         agency={formAgency}

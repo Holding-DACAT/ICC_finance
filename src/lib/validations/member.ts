@@ -15,6 +15,7 @@ export const oriasCategories = [
   "CIF",
   "IFP",
 ] as const;
+export const complianceStatuses = ["A_JOUR", "A_RENOUVELER", "EXPIRE"] as const;
 
 export const memberFormSchema = z.object({
   civility: z.string().trim().max(10).optional().or(z.literal("")),
@@ -34,6 +35,26 @@ export const memberFormSchema = z.object({
   agencyId: z.string().min(1, "Agence requise"),
   arrivalDate: z.string().min(1, "Date d'arrivée requise"),
   departureDate: z.string().optional().or(z.literal("")),
+
+  // --- Habilitation ORIAS & assurances (optionnel) ---
+  // Les mots de passe (ORIAS/associations) ne sont volontairement pas éditables
+  // ici : on n'expose pas de secret en clair dans les formulaires (cf. CLAUDE.md §4).
+  oriasNumber: z.string().trim().max(40).optional().or(z.literal("")),
+  oriasLogin: z.string().trim().max(120).optional().or(z.literal("")),
+  oriasCategories: z.array(z.enum(oriasCategories)).default([]),
+  oriasRenewalDate: z.string().optional().or(z.literal("")),
+  complianceStatus: z.enum(complianceStatuses).default("A_JOUR"),
+  rcProInsurer: z.string().trim().max(120).optional().or(z.literal("")),
+  rcProPolicy: z.string().trim().max(120).optional().or(z.literal("")),
+  rcProExpiry: z.string().optional().or(z.literal("")),
+  guaranteeAmount: z
+    .string()
+    .trim()
+    .regex(/^\d*$/, "Montant invalide (entier en euros).")
+    .optional()
+    .or(z.literal("")),
+  guaranteeExpiry: z.string().optional().or(z.literal("")),
+  assocLogin: z.string().trim().max(120).optional().or(z.literal("")),
 });
 
 export type MemberFormValues = z.infer<typeof memberFormSchema>;

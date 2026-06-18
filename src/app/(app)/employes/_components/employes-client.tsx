@@ -205,7 +205,19 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
         />
       </div>
 
-      <MemberDetailSheet member={detailMember} open={detailOpen} onOpenChange={setDetailOpen} />
+      <MemberDetailSheet
+        member={detailMember}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onEdit={
+          canEdit
+            ? (m) => {
+                setDetailOpen(false);
+                openEdit(m);
+              }
+            : undefined
+        }
+      />
       <MemberFormDialog
         agencies={agencies}
         member={formMember}

@@ -1,8 +1,9 @@
 "use client";
 
-import { Building2, ExternalLink, ShieldCheck, Users } from "lucide-react";
+import { Building2, ExternalLink, Pencil, ShieldCheck, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatDate, formatEur } from "@/lib/format";
 import type { AgencyDTO } from "../types";
@@ -11,27 +12,38 @@ interface AgencyDetailSheetProps {
   agency: AgencyDTO | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Ouvre le formulaire d'édition (affiché seulement si fourni). */
+  onEdit?: (agency: AgencyDTO) => void;
 }
 
-export function AgencyDetailSheet({ agency, open, onOpenChange }: AgencyDetailSheetProps) {
+export function AgencyDetailSheet({ agency, open, onOpenChange, onEdit }: AgencyDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         {agency ? (
           <>
             <SheetHeader>
-              <SheetTitle>{agency.name}</SheetTitle>
-              <div className="text-xs text-text-soft">
-                {agency.type === "FRANCHISE" ? "Franchise" : "Filiale"}
-                {agency.legalName ? ` · ${agency.legalName}` : ""}
-                {agency.legalForm ? ` — ${agency.legalForm}` : ""}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <SheetTitle>{agency.name}</SheetTitle>
+                  <div className="text-xs text-text-soft">
+                    {agency.type === "FRANCHISE" ? "Franchise" : "Filiale"}
+                    {agency.legalName ? ` · ${agency.legalName}` : ""}
+                    {agency.legalForm ? ` — ${agency.legalForm}` : ""}
+                  </div>
+                </div>
+                {onEdit ? (
+                  <Button size="sm" variant="outline" onClick={() => onEdit(agency)}>
+                    <Pencil className="size-3.5" /> Éditer
+                  </Button>
+                ) : null}
               </div>
             </SheetHeader>
 
             <SectionTitle icon={Building2}>Informations</SectionTitle>
             <div className="grid grid-cols-2 gap-2.5">
               <Info label="Statut">
-                <Badge variant={agency.status === "ACTIF" ? "success" : "warning"}>
+                <Badge variant={agency.status === "ACTIF" ? "success" : "danger"}>
                   {agency.status === "ACTIF" ? "ACTIVE" : "INACTIVE"}
                 </Badge>
               </Info>
