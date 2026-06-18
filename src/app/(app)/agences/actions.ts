@@ -2,10 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { Prisma } from "@prisma/client";
+
 import { auth } from "@/auth";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { agencyFormSchema, type AgencyFormValues } from "@/lib/validations/agency";
+import {
+  agencyFormSchema,
+  agencyStatuses,
+  agencyTypes,
+  type AgencyFormValues,
+} from "@/lib/validations/agency";
 
 export interface ActionResult {
   ok: boolean;
@@ -115,5 +122,43 @@ export async function updateAgency(id: string, values: AgencyFormValues): Promis
     return { ok: true, id };
   } catch {
     return { ok: false, error: "Échec de la mise à jour de l'agence." };
+  }
+}
+
+export interface BulkAgencyPatch {
+  status?: (typeof agencyStatuses)[number];
+  type?: (typeof agencyTypes)[number];
+}
+
+/** Modification groupée d'agences (statut / type). Réservé RH/Admin. */
+export async function bulkUpdateAgencies(
+  ids: string[],
+  patch: BulkAgencyPatch,
+): Promise<ActionResult & { count?: number }> {
+  const auth0 = await canWrite();
+  if (!auth0.ok) return auth0;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Aucune ligne sélectionnée." };
+  }
+
+  const data: BulkAgencyPatch = {};
+  if (patch.status && agencyStatuses.includes(patch.status)) data.status = patch.status;
+  if (patch.type && agencyTypes.includes(patch.type)) data.type = patch.type;
+  if (Object.keys(data).length === 0) {
+    return { ok: false, error: "Aucune modification indiquée." };
+  }
+
+  try {
+    const res = await prisma.agency.updateMany({ where: { id: { in: ids } }, data });
+    await writeAudit({
+      userId: auth0.userId,
+      action: "UPDATE",
+      entity: "Agency",
+      diff: { bulk: { count: res.count, patch: data } } as unknown as Prisma.InputJsonValue,
+    });
+    revalidatePath("/agences");
+    return { ok: true, count: res.count };
+  } catch {
+    return { ok: false, error: "Échec de la modification groupée." };
   }
 }

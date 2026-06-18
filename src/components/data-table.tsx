@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type ColumnDef,
+  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -44,6 +45,41 @@ interface DataTableProps<TData, TValue> {
   emptyMessage?: string;
   /** Libellé de pied de tableau, ex. (n) => `${n} membre(s)`. */
   footerLabel?: (count: number) => string;
+  /** Active la colonne de sélection (cases à cocher) + barre d'actions groupées. */
+  enableSelection?: boolean;
+  /** Identifiant stable d'une ligne (recommandé avec la sélection). */
+  getRowId?: (row: TData) => string;
+  /** Barre d'actions groupées, rendue quand au moins une ligne est sélectionnée. */
+  renderBulkActions?: (selected: TData[], clearSelection: () => void) => React.ReactNode;
+}
+
+/** Case à cocher gérant l'état « indéterminé » (sélection partielle). */
+function RowCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = Boolean(indeterminate) && !checked;
+  }, [indeterminate, checked]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      onClick={(e) => e.stopPropagation()}
+      aria-label={ariaLabel}
+      className="size-4 cursor-pointer accent-primary"
+    />
+  );
 }
 
 export function DataTable<TData, TValue>({
@@ -54,17 +90,50 @@ export function DataTable<TData, TValue>({
   onRowClick,
   emptyMessage = "Aucun résultat.",
   footerLabel,
+  enableSelection = false,
+  getRowId,
+  renderBulkActions,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pageSize, setPageSize] = useState<number>(25);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+  // Colonne de sélection ajoutée en tête lorsque la sélection est active.
+  const tableColumns = useMemo<ColumnDef<TData, TValue>[]>(() => {
+    if (!enableSelection) return columns;
+    const selectColumn: ColumnDef<TData, TValue> = {
+      id: "__select",
+      enableSorting: false,
+      meta: { className: "w-8" },
+      header: ({ table }) => (
+        <RowCheckbox
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={table.getIsSomePageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          ariaLabel="Tout sélectionner"
+        />
+      ),
+      cell: ({ row }) => (
+        <RowCheckbox
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          ariaLabel="Sélectionner la ligne"
+        />
+      ),
+    };
+    return [selectColumn, ...columns];
+  }, [enableSelection, columns]);
 
   const table = useReactTable({
     data,
-    columns,
-    state: { sorting, globalFilter, pagination: { pageIndex: 0, pageSize } },
+    columns: tableColumns,
+    state: { sorting, globalFilter, rowSelection, pagination: { pageIndex: 0, pageSize } },
+    enableRowSelection: enableSelection,
+    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -72,6 +141,7 @@ export function DataTable<TData, TValue>({
   });
 
   const filteredCount = table.getFilteredRowModel().rows.length;
+  const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
 
   return (
     <div className="space-y-3">
@@ -112,6 +182,16 @@ export function DataTable<TData, TValue>({
           />
         </div>
       </div>
+
+      {/* Barre d'actions groupées */}
+      {enableSelection && renderBulkActions && selectedRows.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <span className="text-[12.5px] font-semibold text-primary">
+            {selectedRows.length} sélectionné(s)
+          </span>
+          {renderBulkActions(selectedRows, () => table.resetRowSelection())}
+        </div>
+      ) : null}
 
       {/* Tableau */}
       <Table>
@@ -171,7 +251,7 @@ export function DataTable<TData, TValue>({
             ))
           ) : (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columns.length} className="py-8 text-center text-text-soft">
+              <TableCell colSpan={tableColumns.length} className="py-8 text-center text-text-soft">
                 {emptyMessage}
               </TableCell>
             </TableRow>

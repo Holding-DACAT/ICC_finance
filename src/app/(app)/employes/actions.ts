@@ -2,16 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { ContractType, MemberStatus, Prisma } from "@prisma/client";
+
 import { auth } from "@/auth";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { canAccessAgency } from "@/lib/rbac";
-import { memberFormSchema, type MemberFormValues } from "@/lib/validations/member";
+import {
+  contractTypes,
+  memberFormSchema,
+  memberStatuses,
+  type MemberFormValues,
+} from "@/lib/validations/member";
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
   id?: string;
+  count?: number;
 }
 
 const WRITE_ROLES = ["ADMIN", "RH"] as const;
@@ -191,5 +199,69 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
     return { ok: true, id };
   } catch {
     return { ok: false, error: "Échec de la mise à jour du membre." };
+  }
+}
+
+export interface BulkMemberPatch {
+  status?: MemberStatus;
+  agencyId?: string;
+  contractType?: ContractType;
+}
+
+/** Modification groupée de membres (statut / agence / type de contrat). */
+export async function bulkUpdateMembers(
+  ids: string[],
+  patch: BulkMemberPatch,
+): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Non authentifié." };
+  const { role, scopedAgencyId, id: userId } = session.user;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Aucune ligne sélectionnée." };
+  }
+
+  // Ne retient que les champs valides effectivement fournis.
+  const data: BulkMemberPatch = {};
+  if (patch.status && memberStatuses.includes(patch.status)) data.status = patch.status;
+  if (patch.contractType && contractTypes.includes(patch.contractType)) {
+    data.contractType = patch.contractType;
+  }
+  if (patch.agencyId) data.agencyId = patch.agencyId;
+  if (Object.keys(data).length === 0) {
+    return { ok: false, error: "Aucune modification indiquée." };
+  }
+
+  // Contrôle d'accès : RH/ADMIN partout ; un directeur seulement sur son agence.
+  const isWrite = WRITE_ROLES.includes(role as (typeof WRITE_ROLES)[number]);
+  if (!isWrite) {
+    if (role === "DIRECTEUR_AGENCE" && scopedAgencyId) {
+      const inScope = await prisma.member.count({
+        where: { id: { in: ids }, agencyId: scopedAgencyId },
+      });
+      if (inScope !== ids.length) {
+        return { ok: false, error: "Accès refusé : certains membres ne sont pas dans votre agence." };
+      }
+      if (data.agencyId && data.agencyId !== scopedAgencyId) {
+        return { ok: false, error: "Accès refusé : transfert hors de votre agence non autorisé." };
+      }
+    } else {
+      return { ok: false, error: "Accès refusé." };
+    }
+  }
+
+  try {
+    const res = await prisma.member.updateMany({ where: { id: { in: ids } }, data });
+    await writeAudit({
+      userId,
+      action: "UPDATE",
+      entity: "Member",
+      diff: { bulk: { count: res.count, patch: data } } as unknown as Prisma.InputJsonValue,
+    });
+    revalidatePath("/employes");
+    revalidatePath("/");
+    return { ok: true, count: res.count };
+  } catch {
+    return { ok: false, error: "Échec de la modification groupée." };
   }
 }
