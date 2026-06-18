@@ -6,6 +6,7 @@ import {
   BadgeEuro,
   Bell,
   Building2,
+  KanbanSquare,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/onboarding", label: "Onboarding", icon: KanbanSquare },
   { href: "/employes", label: "Employés", icon: Users },
   { href: "/agences", label: "Agences", icon: Building2 },
   { href: "/societe", label: "Société", icon: Landmark },

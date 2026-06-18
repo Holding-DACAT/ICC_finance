@@ -11,6 +11,8 @@ import type {
   PrismaClient,
 } from "@prisma/client";
 
+import { ONBOARDING_STAGES } from "./onboarding-stages";
+
 /* =========================================================================
    Données de démo — reprises du prototype reference/icc-finance-gestion-rh.jsx
    (cf. docs/02_MODELE_DONNEES.md §« Jeu de données de démo »).
@@ -20,12 +22,8 @@ const SILVER_HT = 58.33;
 const GOLD_HT = 112.5;
 const TVA_RATE = 0.2;
 
-const DEFAULT_ONBOARDING_STEPS = [
-  "Création AD",
-  "Boîte mail",
-  "Attribution PC",
-  "Accès SharePoint",
-];
+// Étapes par défaut de l'onboarding — source unique partagée avec le kanban.
+const DEFAULT_ONBOARDING_STEPS = [...ONBOARDING_STAGES];
 
 /** Agences : [nom, type, directeurs, raison sociale, forme juridique]. */
 const AGENCIES: [string, "Franchise" | "Filiale", string[], string, string][] = [
@@ -374,7 +372,7 @@ const REDEVANCE_COUNTS: Record<string, [number, number]> = {
 /** Processus d'onboarding (nouveaux arrivants). */
 const ONBOARDINGS: { memberKey: string; status: OnboardingStatus; done: number }[] = [
   { memberKey: "FERRAND Marie", status: "EN_COURS", done: 2 },
-  { memberKey: "DESTRUEL Valentin", status: "TERMINE", done: 4 },
+  { memberKey: "DESTRUEL Valentin", status: "TERMINE", done: ONBOARDING_STAGES.length },
 ];
 
 /* ------------------------------- utils ---------------------------------- */
