@@ -13,7 +13,7 @@ import {
   Upload,
   Users,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { useClerk } from "@clerk/nextjs";
 
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ userName, roleLabel, role }: AppSidebarProps) {
   const pathname = usePathname();
+  const { signOut } = useClerk();
   const secondary = NAV_SECONDARY.filter(
     (item) => !("roles" in item) || item.roles.includes(role as "ADMIN" | "RH"),
   );
@@ -104,7 +105,7 @@ export function AppSidebar({ userName, roleLabel, role }: AppSidebarProps) {
         </div>
         <div className="mb-3 text-[10px] text-text-soft">{roleLabel}</div>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ redirectUrl: "/login" })}
           className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-white/15 px-3 py-2 text-[12px] font-semibold text-text-soft transition-colors hover:bg-white/5 hover:text-white"
         >
           <LogOut className="size-4" /> Se déconnecter

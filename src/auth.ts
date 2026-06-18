@@ -1,88 +1,78 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import type { Provider } from "next-auth/providers";
+import { auth as clerkAuth, currentUser } from "@clerk/nextjs/server";
 import type { Role } from "@prisma/client";
 
-import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/prisma";
 
-/** Mode démo : aucun tenant Azure requis (cf. CLAUDE.md §8, intégrations mockées). */
-export const USE_MOCKS = process.env.USE_INTEGRATION_MOCKS === "true";
+/**
+ * Couche d'authentification — adaptateur **Clerk** (cf. lot « Accès utilisateurs »).
+ *
+ * Les écrans et Server Actions consomment toujours `auth()` puis `session.user`
+ * (id, email, name, role, scopedAgencyId) : on conserve cette signature pour
+ * éviter de réécrire tous les appels. La source de vérité des rôles est désormais
+ * Clerk (`publicMetadata.role` / `publicMetadata.scopedAgencyId`).
+ */
 
-/** Compte administrateur utilisé pour la connexion en mode démo. */
-export const MOCK_ADMIN = {
-  id: "mock-admin",
-  email: "admin@icc-finance.fr",
-  name: "Administrateur ICC (démo)",
-  role: "ADMIN" as Role,
-} as const;
+export interface SessionUser {
+  /** Identifiant interne (table User) si l'e-mail est connu, sinon l'id Clerk. */
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  scopedAgencyId: string | null;
+}
 
-const providers: Provider[] = USE_MOCKS
-  ? [
-      Credentials({
-        id: "mock",
-        name: "Mode démo",
-        credentials: {},
-        // En mode démo, la connexion réussit toujours avec un compte ADMIN.
-        authorize: async () => ({
-          id: MOCK_ADMIN.id,
-          email: MOCK_ADMIN.email,
-          name: MOCK_ADMIN.name,
-          role: MOCK_ADMIN.role,
-          scopedAgencyId: null,
-        }),
-      }),
-    ]
-  : [
-      MicrosoftEntraID({
-        clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-        clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-        issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-      }),
-    ];
+export interface Session {
+  user: SessionUser;
+}
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  ...authConfig,
-  providers,
-  callbacks: {
-    ...authConfig.callbacks,
-    /**
-     * Enrichit le token avec le rôle applicatif et le périmètre d'agence.
-     * Source de vérité : table `User` (liée à Azure AD) ; à défaut, le rôle du
-     * provider, sinon LECTURE (principe de moindre privilège, cf. CLAUDE.md §4).
-     */
-    async jwt({ token, user }) {
-      if (user?.email) {
-        token.email = user.email;
-        token.role = (user.role as Role) ?? "LECTURE";
-        token.scopedAgencyId = user.scopedAgencyId ?? null;
-      }
-      if (token.email) {
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email },
-            select: { id: true, role: true, scopedAgencyId: true },
-          });
-          if (dbUser) {
-            token.sub = dbUser.id;
-            token.role = dbUser.role;
-            token.scopedAgencyId = dbUser.scopedAgencyId;
-          }
-        } catch {
-          // Base indisponible (ex. build) : on conserve les valeurs du provider.
-        }
-      }
-      token.role ??= "LECTURE";
-      return token;
+interface AppMetadata {
+  role?: Role;
+  scopedAgencyId?: string | null;
+}
+
+/**
+ * Renvoie la session courante (ou `null` si non authentifié). À utiliser
+ * uniquement côté serveur (Server Components, Server Actions, Route Handlers).
+ */
+export async function auth(): Promise<Session | null> {
+  const { userId } = await clerkAuth();
+  if (!userId) return null;
+
+  const user = await currentUser();
+  const email =
+    user?.primaryEmailAddress?.emailAddress ??
+    user?.emailAddresses?.[0]?.emailAddress ??
+    "";
+  const meta = (user?.publicMetadata ?? {}) as AppMetadata;
+  const name =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+    user?.username ||
+    email ||
+    "Utilisateur";
+
+  // Identifiant interne pour les relations (audit, onboarding) : rapproché par
+  // e-mail si une fiche User existe ; sinon on retombe sur l'id Clerk.
+  let internalId = userId;
+  if (email) {
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (dbUser) internalId = dbUser.id;
+    } catch {
+      // Base indisponible (ex. build) : on conserve l'id Clerk.
+    }
+  }
+
+  return {
+    user: {
+      id: internalId,
+      email,
+      name,
+      // Principe de moindre privilège : LECTURE par défaut (cf. CLAUDE.md §4).
+      role: meta.role ?? "LECTURE",
+      scopedAgencyId: meta.scopedAgencyId ?? null,
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub ?? "";
-        session.user.role = (token.role as Role) ?? "LECTURE";
-        session.user.scopedAgencyId = (token.scopedAgencyId as string | null) ?? null;
-      }
-      return session;
-    },
-  },
-});
+  };
+}

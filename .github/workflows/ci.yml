@@ -38,4 +38,7 @@ jobs:
         env:
           # Build statique/dynamique sans BDD : les pages dynamiques ne sont pas pré-rendues.
           USE_INTEGRATION_MOCKS: "true"
-          AUTH_SECRET: "ci-dummy-secret-not-used-at-runtime"
+          # Clés Clerk factices (format valide) : nécessaires au build, jamais utilisées
+          # à l'exécution. Les vraies clés sont définies dans Vercel.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k"
+          CLERK_SECRET_KEY: "sk_test_ci-dummy-key-not-used-at-runtime"
