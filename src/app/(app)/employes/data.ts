@@ -33,13 +33,19 @@ export async function getEmployesData(user: SessionUser): Promise<EmployesData> 
         where,
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
         include: {
-          agency: { select: { name: true } },
+          agency: { select: { name: true, legalName: true } },
           orias: {
             select: {
               oriasNumber: true,
+              oriasLogin: true,
+              oriasPassword: true,
               categories: true,
               status: true,
               renewalDate: true,
+              rcProInsurer: true,
+              rcProPolicy: true,
+              assocLogin: true,
+              assocPassword: true,
             },
           },
           trainings: {
@@ -54,9 +60,10 @@ export async function getEmployesData(user: SessionUser): Promise<EmployesData> 
         },
       }),
       prisma.agency.findMany({
-        where: user.role === "DIRECTEUR_AGENCE" && user.scopedAgencyId
-          ? { id: user.scopedAgencyId }
-          : {},
+        where:
+          user.role === "DIRECTEUR_AGENCE" && user.scopedAgencyId
+            ? { id: user.scopedAgencyId }
+            : {},
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
@@ -69,6 +76,10 @@ export async function getEmployesData(user: SessionUser): Promise<EmployesData> 
       lastName: m.lastName,
       email: m.email,
       phone: m.phone,
+      birthDate: m.birthDate?.toISOString() ?? null,
+      postalAddress: m.postalAddress,
+      siren: m.siren,
+      legalMentions: m.legalMentions,
       contractType: m.contractType,
       functionTitle: m.functionTitle,
       functionSub: m.functionSub,
@@ -76,14 +87,21 @@ export async function getEmployesData(user: SessionUser): Promise<EmployesData> 
       status: m.status,
       agencyId: m.agencyId,
       agencyName: m.agency.name,
+      agencyLegalName: m.agency.legalName,
       arrivalDate: m.arrivalDate.toISOString(),
       departureDate: m.departureDate?.toISOString() ?? null,
       orias: m.orias
         ? {
             oriasNumber: m.orias.oriasNumber,
+            oriasLogin: m.orias.oriasLogin,
+            oriasPassword: m.orias.oriasPassword,
             categories: m.orias.categories,
             status: m.orias.status,
             renewalDate: m.orias.renewalDate?.toISOString() ?? null,
+            rcProInsurer: m.orias.rcProInsurer,
+            rcProPolicy: m.orias.rcProPolicy,
+            assocLogin: m.orias.assocLogin,
+            assocPassword: m.orias.assocPassword,
           }
         : null,
       training: m.trainings[0]

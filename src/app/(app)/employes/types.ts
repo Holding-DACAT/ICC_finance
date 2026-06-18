@@ -14,6 +14,10 @@ export interface MemberDTO {
   lastName: string;
   email: string;
   phone: string | null;
+  birthDate: string | null;
+  postalAddress: string | null;
+  siren: string | null;
+  legalMentions: string | null;
   contractType: ContractType;
   functionTitle: string;
   functionSub: string | null;
@@ -21,13 +25,20 @@ export interface MemberDTO {
   status: MemberStatus;
   agencyId: string;
   agencyName: string;
+  agencyLegalName: string | null;
   arrivalDate: string;
   departureDate: string | null;
   orias: {
     oriasNumber: string | null;
+    oriasLogin: string | null;
+    oriasPassword: string | null;
     categories: string[];
     status: ComplianceStatus;
     renewalDate: string | null;
+    rcProInsurer: string | null;
+    rcProPolicy: string | null;
+    assocLogin: string | null;
+    assocPassword: string | null;
   } | null;
   training: { year: number; requiredHours: number; completedHours: number } | null;
   computers: { id: string; name: string; model: string; registrationDate: string }[];

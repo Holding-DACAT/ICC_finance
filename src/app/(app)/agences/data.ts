@@ -20,16 +20,16 @@ const memberName = (m: { lastName: string; firstName: string }) => `${m.lastName
 export async function getAgencesData(user: SessionUser): Promise<AgencesData> {
   try {
     const where =
-      user.role === "DIRECTEUR_AGENCE" && user.scopedAgencyId
-        ? { id: user.scopedAgencyId }
-        : {};
+      user.role === "DIRECTEUR_AGENCE" && user.scopedAgencyId ? { id: user.scopedAgencyId } : {};
 
     const [rows, members] = await Promise.all([
       prisma.agency.findMany({
         where,
         orderBy: { name: "asc" },
         include: {
-          directors: { include: { member: { select: { id: true, firstName: true, lastName: true } } } },
+          directors: {
+            include: { member: { select: { id: true, firstName: true, lastName: true } } },
+          },
           members: {
             select: { id: true, firstName: true, lastName: true, functionTitle: true },
             orderBy: { lastName: "asc" },
@@ -49,7 +49,10 @@ export async function getAgencesData(user: SessionUser): Promise<AgencesData> {
       status: a.status,
       legalName: a.legalName,
       legalForm: a.legalForm,
+      siren: a.siren,
       address: a.address,
+      phone: a.phone,
+      email: a.email,
       oriasNumber: a.oriasNumber,
       rcProInsurer: a.rcProInsurer,
       rcProExpiry: a.rcProExpiry?.toISOString() ?? null,

@@ -1,4 +1,4 @@
-import { Building2, UserX, Users } from "lucide-react";
+import { UserX, Users } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { KpiCard } from "@/components/kpi-card";
@@ -28,11 +28,21 @@ export default async function EmployesPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard icon={Users} iconClassName="bg-kpi-orange" label="Actifs" value={kpis.actifs} sub="Membres actuels du réseau" />
-        <KpiCard icon={UserX} iconClassName="bg-kpi-pink" label="Inactifs" value={kpis.inactifs} sub="Anciens membres du réseau" />
-        <KpiCard icon={Building2} iconClassName="bg-kpi-green" label="Franchisés" value={kpis.franchises} sub="Membres d'une franchise" />
-        <KpiCard icon={Users} iconClassName="bg-kpi-blue" label="Affiliés" value={kpis.filiales} sub="Membres d'une filiale" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <KpiCard
+          icon={Users}
+          iconClassName="bg-kpi-orange"
+          label="Actifs"
+          value={kpis.actifs}
+          sub="Membres actuels du réseau"
+        />
+        <KpiCard
+          icon={UserX}
+          iconClassName="bg-kpi-pink"
+          label="Inactifs"
+          value={kpis.inactifs}
+          sub="Anciens membres du réseau"
+        />
       </div>
 
       {available ? (
