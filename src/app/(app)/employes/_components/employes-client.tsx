@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
-import { CONTRACT_LABELS } from "@/lib/labels";
-import { contractTypes } from "@/lib/validations/member";
+import { CONTRACT_LABELS, MEMBER_STATUS_LABELS } from "@/lib/labels";
+import { contractTypes, memberStatuses } from "@/lib/validations/member";
 import { MemberDetailSheet } from "./member-detail-sheet";
 import { MemberFormDialog } from "./member-form-dialog";
 import type { AgencyOption, MemberDTO } from "../types";
@@ -181,8 +181,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
                 onChange={setStatusFilter}
                 options={[
                   ["Tous", "Tous statuts"],
-                  ["ACTIF", "Actifs"],
-                  ["INACTIF", "Inactifs"],
+                  ...memberStatuses.map((s) => [s, MEMBER_STATUS_LABELS[s]] as [string, string]),
                 ]}
               />
               <FilterSelect

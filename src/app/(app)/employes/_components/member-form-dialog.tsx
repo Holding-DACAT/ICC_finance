@@ -23,10 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONTRACT_LABELS, NETWORK_LABELS } from "@/lib/labels";
+import { CONTRACT_LABELS, MEMBER_STATUS_LABELS, NETWORK_LABELS } from "@/lib/labels";
 import {
   contractTypes,
   memberFormSchema,
+  memberStatuses,
   networkTypes,
   type MemberFormValues,
 } from "@/lib/validations/member";
@@ -213,8 +214,11 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ACTIF">Actif</SelectItem>
-                    <SelectItem value="INACTIF">Inactif</SelectItem>
+                    {memberStatuses.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {MEMBER_STATUS_LABELS[s]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}

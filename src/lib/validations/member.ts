@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const contractTypes = ["CDI", "CDD", "MANDAT", "FRANCHISE"] as const;
 export const networkTypes = ["FRANCHISE", "FILIALE", "AFFILIE"] as const;
-export const memberStatuses = ["ACTIF", "INACTIF"] as const;
+export const memberStatuses = ["ACTIF", "INACTIF", "EN_COURS_ENREGISTREMENT"] as const;
 export const oriasCategories = [
   "COBSP",
   "MOBSP",
