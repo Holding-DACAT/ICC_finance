@@ -23,6 +23,10 @@ function normalize(values: MemberFormValues) {
     lastName: values.lastName.toUpperCase(),
     email: values.email.toLowerCase(),
     phone: values.phone || null,
+    birthDate: values.birthDate ? new Date(values.birthDate) : null,
+    postalAddress: values.postalAddress || null,
+    siren: values.siren || null,
+    legalMentions: values.legalMentions || null,
     contractType: values.contractType,
     functionTitle: values.functionTitle,
     functionSub: values.functionSub || null,
@@ -80,9 +84,7 @@ async function startOnboarding(memberId: string, assignedToId?: string | null): 
     const setting = await prisma.setting.findUnique({
       where: { key: "onboarding.defaultSteps" },
     });
-    const labels = Array.isArray(setting?.value)
-      ? (setting?.value as string[])
-      : FALLBACK_STEPS;
+    const labels = Array.isArray(setting?.value) ? (setting?.value as string[]) : FALLBACK_STEPS;
     // Vérifie que l'assigné est bien un compte applicatif existant (FK).
     const assignee = assignedToId
       ? await prisma.user.findUnique({ where: { id: assignedToId }, select: { id: true } })
@@ -102,10 +104,7 @@ async function startOnboarding(memberId: string, assignedToId?: string | null): 
   }
 }
 
-export async function updateMember(
-  id: string,
-  values: MemberFormValues,
-): Promise<ActionResult> {
+export async function updateMember(id: string, values: MemberFormValues): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user) return { ok: false, error: "Non authentifié." };
   const { role, scopedAgencyId, id: userId } = session.user;

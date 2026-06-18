@@ -46,22 +46,198 @@ const AGENCIES: [string, "Franchise" | "Filiale", string[], string, string][] = 
 /** Membres : [prénom, nom, contrat, fonction, sousFonction, orias, agence, réseau, arrivée, statut]. */
 const MEMBERS: [string, string, string, string, string, string, string, string, string, string][] =
   [
-    ["Anthony", "BAUCAL", "CDD", "Alternant", "Développeur", "", "ICC Développement", "Filiale", "2020-09-27", "actif"],
-    ["Anaïs", "BOGUENE", "Contrat de Mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Colomiers", "Filiale", "2021-07-11", "actif"],
-    ["Arnaud", "CHARPENTIER", "Contrat de Mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Colomiers", "Filiale", "2021-09-01", "actif"],
-    ["Axelle", "D'ORSO", "Contrat de mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Bordeaux", "Filiale", "2026-02-26", "inactif"],
-    ["Anaïs", "DAI-PRA", "CDI", "Salarié", "Responsable Administrative et Financière", "", "Colomiers", "Filiale", "2014-07-15", "actif"],
-    ["Alexia", "DENEGRE", "Contrat de Franchise", "Directrice d'agence", "COBSP & COA", "COBSP, COA", "Agen & Miramont-de-Guyenne", "Franchise", "2020-12-17", "actif"],
-    ["Arnaud", "DUMAS", "Contrat de Franchise", "Directeur d'agence", "COBSP & COA", "COBSP, COA", "Albi", "Franchise", "2018-12-14", "actif"],
-    ["Antoine", "FLORIAN", "Contrat de Mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Montauban", "Franchise", "2019-04-14", "inactif"],
-    ["Andréa", "GARROUSTE", "Contrat de Mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Muret", "Filiale", "2019-09-30", "actif"],
-    ["Valentin", "DESTRUEL", "Contrat de Mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Labège", "Filiale", "2022-11-03", "actif"],
-    ["Vincent", "GISQUET", "Contrat de Franchise", "Directeur d'agence", "COBSP & COA", "COBSP, COA", "Perpignan", "Franchise", "2017-06-09", "actif"],
-    ["Séverine", "BUENO GARCIA", "Contrat de Franchise", "Directrice d'agence", "COBSP & COA", "COBSP, COA", "Albi", "Franchise", "2016-03-21", "actif"],
-    ["Jean-Baptiste", "BOURIN", "CDI", "Directeur d'agence", "COBSP & COA", "COBSP, COA", "Bordeaux", "Filiale", "2015-01-12", "actif"],
-    ["Julien", "COSTA", "Contrat de Franchise", "Directeur d'agence", "COBSP & COA", "COBSP, COA", "Perpignan", "Franchise", "2021-05-04", "actif"],
-    ["Laurent", "LABAU", "CDI", "Directeur d'agence", "COBSP & COA", "COBSP, COA", "Labège", "Filiale", "2013-09-02", "actif"],
-    ["Marie", "FERRAND", "Contrat de Mandat", "Mandataire", "MIOBSP & MIA", "MIOBSP, MIA", "Bordeaux", "Filiale", "2023-02-15", "actif"],
+    [
+      "Anthony",
+      "BAUCAL",
+      "CDD",
+      "Alternant",
+      "Développeur",
+      "",
+      "ICC Développement",
+      "Filiale",
+      "2020-09-27",
+      "actif",
+    ],
+    [
+      "Anaïs",
+      "BOGUENE",
+      "Contrat de Mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Colomiers",
+      "Filiale",
+      "2021-07-11",
+      "actif",
+    ],
+    [
+      "Arnaud",
+      "CHARPENTIER",
+      "Contrat de Mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Colomiers",
+      "Filiale",
+      "2021-09-01",
+      "actif",
+    ],
+    [
+      "Axelle",
+      "D'ORSO",
+      "Contrat de mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Bordeaux",
+      "Filiale",
+      "2026-02-26",
+      "inactif",
+    ],
+    [
+      "Anaïs",
+      "DAI-PRA",
+      "CDI",
+      "Salarié",
+      "Responsable Administrative et Financière",
+      "",
+      "Colomiers",
+      "Filiale",
+      "2014-07-15",
+      "actif",
+    ],
+    [
+      "Alexia",
+      "DENEGRE",
+      "Contrat de Franchise",
+      "Directrice d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Agen & Miramont-de-Guyenne",
+      "Franchise",
+      "2020-12-17",
+      "actif",
+    ],
+    [
+      "Arnaud",
+      "DUMAS",
+      "Contrat de Franchise",
+      "Directeur d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Albi",
+      "Franchise",
+      "2018-12-14",
+      "actif",
+    ],
+    [
+      "Antoine",
+      "FLORIAN",
+      "Contrat de Mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Montauban",
+      "Franchise",
+      "2019-04-14",
+      "inactif",
+    ],
+    [
+      "Andréa",
+      "GARROUSTE",
+      "Contrat de Mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Muret",
+      "Filiale",
+      "2019-09-30",
+      "actif",
+    ],
+    [
+      "Valentin",
+      "DESTRUEL",
+      "Contrat de Mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Labège",
+      "Filiale",
+      "2022-11-03",
+      "actif",
+    ],
+    [
+      "Vincent",
+      "GISQUET",
+      "Contrat de Franchise",
+      "Directeur d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Perpignan",
+      "Franchise",
+      "2017-06-09",
+      "actif",
+    ],
+    [
+      "Séverine",
+      "BUENO GARCIA",
+      "Contrat de Franchise",
+      "Directrice d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Albi",
+      "Franchise",
+      "2016-03-21",
+      "actif",
+    ],
+    [
+      "Jean-Baptiste",
+      "BOURIN",
+      "CDI",
+      "Directeur d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Bordeaux",
+      "Filiale",
+      "2015-01-12",
+      "actif",
+    ],
+    [
+      "Julien",
+      "COSTA",
+      "Contrat de Franchise",
+      "Directeur d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Perpignan",
+      "Franchise",
+      "2021-05-04",
+      "actif",
+    ],
+    [
+      "Laurent",
+      "LABAU",
+      "CDI",
+      "Directeur d'agence",
+      "COBSP & COA",
+      "COBSP, COA",
+      "Labège",
+      "Filiale",
+      "2013-09-02",
+      "actif",
+    ],
+    [
+      "Marie",
+      "FERRAND",
+      "Contrat de Mandat",
+      "Mandataire",
+      "MIOBSP & MIA",
+      "MIOBSP, MIA",
+      "Bordeaux",
+      "Filiale",
+      "2023-02-15",
+      "actif",
+    ],
   ];
 
 /** Heures de formation réalisées (réplique de la logique du prototype). */
@@ -69,18 +245,114 @@ const TRAINING_POOL = [6, 9, 12, 15, 4, 11, 15, 8];
 
 /** Ordinateurs : [nom, modèle, série, enregistrement, dernière synchro, % disque, utilisateur "NOM Prénom"]. */
 const COMPUTERS: [string, string, string, string, string, number, string][] = [
-  ["DESKTOP-UOGNCMI", "HP EliteBook 850 G7 Notebook PC", "5CG0470C7N", "2023-03-22", "2023-07-26", 91, "BAUCAL Anthony"],
-  ["DESKTOP-5R4TK2F", "HP EliteBook 850 G8 Notebook PC", "5CG22133NH", "2022-12-20", "2023-07-26", 51, "BOGUENE Anaïs"],
-  ["DESKTOP-D9V22HO", "HP EliteBook 840 G6", "5CG0268V55", "2022-08-04", "2023-07-21", 59, "CHARPENTIER Arnaud"],
-  ["DESKTOP-AL10836", "HP EliteBook 840 G6", "5CG03935V3", "2022-07-19", "2023-07-26", 68, "DENEGRE Alexia"],
-  ["DESKTOP-1ARTE8F", "HP ZBook Power 15.6 G8 Mobile Workstation", "5CD2022GVV", "2022-07-13", "2023-07-26", 57, "DUMAS Arnaud"],
-  ["DESKTOP-PH9L396", "HP EliteBook x360 830 G7 Notebook PC", "5CG124778Z", "2022-07-06", "2023-07-23", 66, "GARROUSTE Andréa"],
-  ["DESKTOP-IKUJ3R3", "HP EliteBook 840 G6", "5CG938C7TF", "2022-03-01", "2023-07-26", 33, "GISQUET Vincent"],
-  ["DESKTOP-9KKL9OJ", "HP EliteBook 850 G8 Notebook PC", "5CG125CDJK", "2022-02-28", "2023-07-26", 65, "DESTRUEL Valentin"],
-  ["DESKTOP-386C60H", "HP EliteBook 850 G8 Notebook PC", "5CG1224CGM", "2022-02-04", "2023-07-21", 44, "FERRAND Marie"],
-  ["DESKTOP-R410RLT", "HP EliteBook 850 G8 Notebook PC", "5CG1224K4S", "2022-01-25", "2023-07-26", 28, "BOURIN Jean-Baptiste"],
-  ["DESKTOP-KBK6V76", "HP EliteBook 850 G8 Notebook PC", "5CG1350898", "2023-06-21", "2023-07-21", 74, "DESTRUEL Valentin"],
-  ["DESKTOP-3NBDSR4", "HP EliteBook 850 G8 Notebook PC", "5CG221BSJ3", "2023-01-23", "2023-02-25", 80, "GISQUET Vincent"],
+  [
+    "DESKTOP-UOGNCMI",
+    "HP EliteBook 850 G7 Notebook PC",
+    "5CG0470C7N",
+    "2023-03-22",
+    "2023-07-26",
+    91,
+    "BAUCAL Anthony",
+  ],
+  [
+    "DESKTOP-5R4TK2F",
+    "HP EliteBook 850 G8 Notebook PC",
+    "5CG22133NH",
+    "2022-12-20",
+    "2023-07-26",
+    51,
+    "BOGUENE Anaïs",
+  ],
+  [
+    "DESKTOP-D9V22HO",
+    "HP EliteBook 840 G6",
+    "5CG0268V55",
+    "2022-08-04",
+    "2023-07-21",
+    59,
+    "CHARPENTIER Arnaud",
+  ],
+  [
+    "DESKTOP-AL10836",
+    "HP EliteBook 840 G6",
+    "5CG03935V3",
+    "2022-07-19",
+    "2023-07-26",
+    68,
+    "DENEGRE Alexia",
+  ],
+  [
+    "DESKTOP-1ARTE8F",
+    "HP ZBook Power 15.6 G8 Mobile Workstation",
+    "5CD2022GVV",
+    "2022-07-13",
+    "2023-07-26",
+    57,
+    "DUMAS Arnaud",
+  ],
+  [
+    "DESKTOP-PH9L396",
+    "HP EliteBook x360 830 G7 Notebook PC",
+    "5CG124778Z",
+    "2022-07-06",
+    "2023-07-23",
+    66,
+    "GARROUSTE Andréa",
+  ],
+  [
+    "DESKTOP-IKUJ3R3",
+    "HP EliteBook 840 G6",
+    "5CG938C7TF",
+    "2022-03-01",
+    "2023-07-26",
+    33,
+    "GISQUET Vincent",
+  ],
+  [
+    "DESKTOP-9KKL9OJ",
+    "HP EliteBook 850 G8 Notebook PC",
+    "5CG125CDJK",
+    "2022-02-28",
+    "2023-07-26",
+    65,
+    "DESTRUEL Valentin",
+  ],
+  [
+    "DESKTOP-386C60H",
+    "HP EliteBook 850 G8 Notebook PC",
+    "5CG1224CGM",
+    "2022-02-04",
+    "2023-07-21",
+    44,
+    "FERRAND Marie",
+  ],
+  [
+    "DESKTOP-R410RLT",
+    "HP EliteBook 850 G8 Notebook PC",
+    "5CG1224K4S",
+    "2022-01-25",
+    "2023-07-26",
+    28,
+    "BOURIN Jean-Baptiste",
+  ],
+  [
+    "DESKTOP-KBK6V76",
+    "HP EliteBook 850 G8 Notebook PC",
+    "5CG1350898",
+    "2023-06-21",
+    "2023-07-21",
+    74,
+    "DESTRUEL Valentin",
+  ],
+  [
+    "DESKTOP-3NBDSR4",
+    "HP EliteBook 850 G8 Notebook PC",
+    "5CG221BSJ3",
+    "2023-01-23",
+    "2023-02-25",
+    80,
+    "GISQUET Vincent",
+  ],
 ];
 
 /** Compteurs de redevance par agence : [Silver, Gold]. */
@@ -117,6 +389,34 @@ function slug(s: string): string {
 
 function buildEmail(firstName: string, lastName: string): string {
   return `${slug(firstName)}.${slug(lastName)}@icc-finance.fr`;
+}
+
+/** SIREN de démo : 9 chiffres déterministes dérivés d'une chaîne. */
+function fakeSiren(seed: string): string {
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) % 1_000_000_000;
+  return String(100_000_000 + (h % 800_000_000));
+}
+
+/** Téléphone de démo (déterministe). */
+function fakePhone(index: number): string {
+  const n = (1234567 + index * 4321) % 10_000_000;
+  const s = String(n).padStart(7, "0");
+  return `05 ${s.slice(0, 1)}${s.slice(1, 2)} ${s.slice(2, 4)} ${s.slice(4, 6)} ${s.slice(6)}0`;
+}
+
+/** Adresse postale de démo (déterministe). */
+function fakeAddress(index: number): string {
+  const villes = ["Toulouse", "Colomiers", "Albi", "Bordeaux", "Muret", "Labège", "Perpignan"];
+  return `${1 + ((index * 7) % 90)} rue des Courtiers, ${31000 + index} ${villes[index % villes.length]}`;
+}
+
+/** Date de naissance de démo (déterministe, adultes). */
+function fakeBirthDate(index: number): Date {
+  const year = 1975 + (index % 25);
+  const month = 1 + (index % 12);
+  const day = 1 + (index % 27);
+  return new Date(year, month - 1, day);
 }
 
 function mapContract(c: string): ContractType {
@@ -189,7 +489,8 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
 
   // --- Agences ---
   const agencyIdByName = new Map<string, string>();
-  for (const [name, type, , legalName, legalForm] of AGENCIES) {
+  for (let i = 0; i < AGENCIES.length; i++) {
+    const [name, type, , legalName, legalForm] = AGENCIES[i];
     const agency = await db.agency.create({
       data: {
         name,
@@ -197,6 +498,9 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
         status: "ACTIF",
         legalName,
         legalForm,
+        siren: fakeSiren(legalName),
+        phone: fakePhone(i),
+        email: `contact@${slug(legalName)}.fr`,
         redevanceExcluded: name === "ICC Développement",
       },
     });
@@ -214,11 +518,18 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
     const categories = mapOriasCategories(orias);
     const hours = trainingHours(fonction, i);
 
+    const isIndependent = mapContract(contrat) === "MANDAT" || mapContract(contrat) === "FRANCHISE";
     const member = await db.member.create({
       data: {
         firstName: prenom,
         lastName: nom,
         email: buildEmail(prenom, nom),
+        birthDate: fakeBirthDate(i),
+        postalAddress: fakeAddress(i),
+        siren: isIndependent ? fakeSiren(`${nom}${prenom}`) : null,
+        legalMentions: isIndependent
+          ? `${prenom} ${nom} — entreprise individuelle, RCS Toulouse`
+          : null,
         contractType: mapContract(contrat),
         functionTitle: fonction,
         functionSub: sousFonction || null,
@@ -230,11 +541,16 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
           ? {
               create: {
                 oriasNumber: `ORIAS-${slug(nom).toUpperCase().slice(0, 6)}`,
+                oriasLogin: buildEmail(prenom, nom),
+                oriasPassword: `Orias!${slug(nom).slice(0, 4)}2026`,
                 categories,
                 registrationDate: new Date(arrivee),
                 renewalDate: new Date("2026-02-28"),
                 status: "A_JOUR" as ComplianceStatus,
                 rcProInsurer: "MMA",
+                rcProPolicy: `POL-${slug(nom).toUpperCase().slice(0, 5)}-2026`,
+                assocLogin: `${slug(prenom)}.${slug(nom)}`,
+                assocPassword: `Assoc!${slug(nom).slice(0, 4)}2026`,
                 capacityProOk: true,
                 honorabilityOk: true,
               },

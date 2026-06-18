@@ -47,6 +47,10 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     lastName: member?.lastName ?? "",
     email: member?.email ?? "",
     phone: member?.phone ?? "",
+    birthDate: member?.birthDate ? member.birthDate.slice(0, 10) : "",
+    postalAddress: member?.postalAddress ?? "",
+    siren: member?.siren ?? "",
+    legalMentions: member?.legalMentions ?? "",
     contractType: member?.contractType ?? "MANDAT",
     functionTitle: member?.functionTitle ?? "",
     functionSub: member?.functionSub ?? "",
@@ -58,12 +62,7 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
   };
 }
 
-export function MemberFormDialog({
-  agencies,
-  member,
-  open,
-  onOpenChange,
-}: MemberFormDialogProps) {
+export function MemberFormDialog({ agencies, member, open, onOpenChange }: MemberFormDialogProps) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = Boolean(member);
@@ -90,9 +89,8 @@ export function MemberFormDialog({
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const result = isEdit && member
-      ? await updateMember(member.id, values)
-      : await createMember(values);
+    const result =
+      isEdit && member ? await updateMember(member.id, values) : await createMember(values);
     if (result.ok) {
       onOpenChange(false);
       router.refresh();
@@ -123,6 +121,18 @@ export function MemberFormDialog({
           </Field>
           <Field label="Téléphone" error={errors.phone?.message}>
             <Input {...register("phone")} />
+          </Field>
+          <Field label="Date de naissance" error={errors.birthDate?.message}>
+            <Input type="date" {...register("birthDate")} />
+          </Field>
+          <Field label="Adresse postale" error={errors.postalAddress?.message}>
+            <Input {...register("postalAddress")} />
+          </Field>
+          <Field label="SIREN" error={errors.siren?.message}>
+            <Input {...register("siren")} />
+          </Field>
+          <Field label="Mentions légales" error={errors.legalMentions?.message}>
+            <Input {...register("legalMentions")} />
           </Field>
 
           <Field label="Type de contrat *" error={errors.contractType?.message}>

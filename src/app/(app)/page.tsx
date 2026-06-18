@@ -32,14 +32,7 @@ export default async function DashboardPage() {
           icon={Users}
           iconClassName="bg-kpi-orange"
           label="Membres du réseau"
-          value={
-            <>
-              <div>{d.membersTotal} membres</div>
-              <div className="text-[12.5px] font-semibold text-text-soft">
-                {d.iccDevMembers} ICC Dév.
-              </div>
-            </>
-          }
+          value={`${d.membersTotal} membres`}
           sub="Ressources humaines"
         />
         <KpiCard
@@ -136,7 +129,11 @@ export default async function DashboardPage() {
         </Section>
       </div>
 
-      <Section title="Suivi du processus de création des nouveaux arrivants" icon={Search} accent="green">
+      <Section
+        title="Suivi du processus de création des nouveaux arrivants"
+        icon={Search}
+        accent="green"
+      >
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -155,7 +152,11 @@ export default async function DashboardPage() {
                 <TableCell className="font-bold">{o.memberName}</TableCell>
                 <TableCell>
                   <Badge variant={o.status === "TERMINE" ? "success" : "warning"}>
-                    {o.status === "TERMINE" ? "TERMINÉ" : o.status === "EN_COURS" ? "EN COURS" : "AUCUN"}
+                    {o.status === "TERMINE"
+                      ? "TERMINÉ"
+                      : o.status === "EN_COURS"
+                        ? "EN COURS"
+                        : "AUCUN"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-text-soft">{formatDate(o.updatedAt)}</TableCell>

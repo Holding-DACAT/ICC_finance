@@ -93,7 +93,10 @@ model Agency {
   status            MemberStatus @default(ACTIF)
   legalName         String?
   legalForm         String?       // SAS, SARL...
+  siren             String?       // SIREN de la société
   address           String?
+  phone             String?
+  email             String?
   oriasNumber       String?
   rcProInsurer      String?
   rcProExpiry       DateTime?
@@ -126,6 +129,10 @@ model Member {
   email         String   @unique
   phone         String?
   photoUrl      String?
+  birthDate     DateTime?        // date de naissance
+  postalAddress String?          // adresse postale
+  siren         String?          // SIREN (mandataire/franchisé)
+  legalMentions String?          // mentions légales
   contractType  ContractType
   functionTitle String           // ex. "Mandataire", "Directeur d'agence"
   functionSub   String?          // ex. "MIOBSP & MIA"
@@ -176,13 +183,17 @@ model OriasRegistration {
   member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   memberId         String   @unique
   oriasNumber      String?
+  oriasLogin       String?          // identifiant ORIAS
+  oriasPassword    String?          // mot de passe ORIAS
   categories       OriasCategory[]
   registrationDate DateTime?
   renewalDate      DateTime?
   status           ComplianceStatus @default(A_JOUR)
-  rcProInsurer     String?
-  rcProPolicy      String?
+  rcProInsurer     String?          // Assurances — nom assureur
+  rcProPolicy      String?          // Assurances — n° police / contrat
   rcProExpiry      DateTime?
+  assocLogin       String?          // Associations professionnelles — identifiant
+  assocPassword    String?          // Associations professionnelles — mot de passe
   guaranteeAmount  Int?
   guaranteeExpiry  DateTime?
   capacityProOk    Boolean  @default(false)

@@ -41,7 +41,10 @@ function toFormValues(a: AgencyDTO | null | undefined): AgencyFormValues {
     status: a?.status ?? "ACTIF",
     legalName: a?.legalName ?? "",
     legalForm: a?.legalForm ?? "",
+    siren: a?.siren ?? "",
     address: a?.address ?? "",
+    phone: a?.phone ?? "",
+    email: a?.email ?? "",
     oriasNumber: a?.oriasNumber ?? "",
     rcProInsurer: a?.rcProInsurer ?? "",
     rcProExpiry: a?.rcProExpiry ? a.rcProExpiry.slice(0, 10) : "",
@@ -84,9 +87,8 @@ export function AgencyFormDialog({
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const result = isEdit && agency
-      ? await updateAgency(agency.id, values)
-      : await createAgency(values);
+    const result =
+      isEdit && agency ? await updateAgency(agency.id, values) : await createAgency(values);
     if (result.ok) {
       onOpenChange(false);
       router.refresh();
@@ -130,6 +132,17 @@ export function AgencyFormDialog({
           </Field>
           <Field label="Forme juridique" error={errors.legalForm?.message}>
             <Input {...register("legalForm")} placeholder="SAS, SARL…" />
+          </Field>
+
+          <Field label="SIREN" error={errors.siren?.message}>
+            <Input {...register("siren")} />
+          </Field>
+          <Field label="Téléphone" error={errors.phone?.message}>
+            <Input {...register("phone")} />
+          </Field>
+
+          <Field label="Adresse mail" error={errors.email?.message}>
+            <Input type="email" {...register("email")} />
           </Field>
 
           <Field label="Statut">
@@ -238,7 +251,12 @@ export function AgencyFormDialog({
           ) : null}
 
           <div className="col-span-full mt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
               Annuler
             </Button>
             <Button type="submit" disabled={isSubmitting}>

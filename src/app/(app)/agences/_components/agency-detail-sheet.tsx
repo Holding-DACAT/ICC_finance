@@ -36,7 +36,10 @@ export function AgencyDetailSheet({ agency, open, onOpenChange }: AgencyDetailSh
                 </Badge>
               </Info>
               <Info label="N° ORIAS" value={agency.oriasNumber ?? "—"} />
+              <Info label="SIREN" value={agency.siren ?? "—"} />
               <Info label="Adresse" value={agency.address ?? "—"} />
+              <Info label="Téléphone" value={agency.phone ?? "—"} />
+              <Info label="Adresse mail" value={agency.email ?? "—"} />
               <Info label="Membres" value={String(agency.members.length)} />
             </div>
 

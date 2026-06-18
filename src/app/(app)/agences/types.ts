@@ -7,7 +7,10 @@ export interface AgencyDTO {
   status: MemberStatus;
   legalName: string | null;
   legalForm: string | null;
+  siren: string | null;
   address: string | null;
+  phone: string | null;
+  email: string | null;
   oriasNumber: string | null;
   rcProInsurer: string | null;
   rcProExpiry: string | null;

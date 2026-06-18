@@ -6,6 +6,7 @@ import {
   BadgeEuro,
   Bell,
   Building2,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Monitor,
@@ -21,6 +22,7 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/employes", label: "Employés", icon: Users },
   { href: "/agences", label: "Agences", icon: Building2 },
+  { href: "/societe", label: "Société", icon: Landmark },
   { href: "/ordinateurs", label: "Ordinateurs", icon: Monitor },
   { href: "/redevance", label: "Redevance info.", icon: BadgeEuro },
 ] as const;
