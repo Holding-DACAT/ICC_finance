@@ -47,7 +47,7 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     lastName: member?.lastName ?? "",
     email: member?.email ?? "",
     phone: member?.phone ?? "",
-    contractType: member?.contractType ?? "MANDAT",
+    contractType: member?.contractType ?? "MANDATAIRE",
     functionTitle: member?.functionTitle ?? "",
     functionSub: member?.functionSub ?? "",
     network: member?.network ?? "FILIALE",

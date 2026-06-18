@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /** Schémas Zod — frontière de validation des formulaires/API (cf. CLAUDE.md §3). */
 
-export const contractTypes = ["CDI", "CDD", "MANDAT", "FRANCHISE"] as const;
+export const contractTypes = ["MANDATAIRE", "SALARIE", "GERANT"] as const;
 export const networkTypes = ["FRANCHISE", "FILIALE", "AFFILIE"] as const;
 export const memberStatuses = ["ACTIF", "INACTIF"] as const;
 export const oriasCategories = [
