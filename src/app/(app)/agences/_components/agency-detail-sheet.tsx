@@ -43,15 +43,19 @@ export function AgencyDetailSheet({ agency, open, onOpenChange }: AgencyDetailSh
               <Info label="Membres" value={String(agency.members.length)} />
             </div>
 
-            <SectionTitle icon={ShieldCheck}>Conformité</SectionTitle>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Info label="RC Pro — assureur" value={agency.rcProInsurer ?? "—"} />
-              <Info label="RC Pro — échéance" value={formatDate(agency.rcProExpiry)} />
-              <Info
-                label="Garantie financière"
-                value={agency.guaranteeAmount != null ? formatEur(agency.guaranteeAmount) : "—"}
-              />
-              <Info label="Garantie — échéance" value={formatDate(agency.guaranteeExpiry)} />
+            <SectionTitle icon={ShieldCheck}>Assurances & conformité</SectionTitle>
+            <div className="space-y-3">
+              <ConformiteBlock title="RC Pro">
+                <Info label="Assureur" value={agency.rcProInsurer ?? "—"} />
+                <Info label="Échéance" value={formatDate(agency.rcProExpiry)} />
+              </ConformiteBlock>
+              <ConformiteBlock title="Garantie financière">
+                <Info
+                  label="Montant"
+                  value={agency.guaranteeAmount != null ? formatEur(agency.guaranteeAmount) : "—"}
+                />
+                <Info label="Échéance" value={formatDate(agency.guaranteeExpiry)} />
+              </ConformiteBlock>
             </div>
 
             <SectionTitle icon={Users}>Directeur(s) & membres</SectionTitle>
@@ -105,6 +109,17 @@ function SectionTitle({
   return (
     <div className="mb-2 mt-5 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide text-primary">
       <Icon className="size-3.5" /> {children}
+    </div>
+  );
+}
+
+function ConformiteBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/70 p-3">
+      <div className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-text-soft">
+        {title}
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">{children}</div>
     </div>
   );
 }
