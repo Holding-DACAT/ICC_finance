@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
 
 import "./globals.css";
 
@@ -21,10 +23,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={hanken.variable}>
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-        {children}
-      </body>
-    </html>
+    <ClerkProvider localization={frFR} signInUrl="/login" signUpUrl="/sign-up" afterSignOutUrl="/login">
+      <html lang="fr" className={hanken.variable}>
+        <body className="min-h-screen bg-background font-sans text-foreground antialiased">
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

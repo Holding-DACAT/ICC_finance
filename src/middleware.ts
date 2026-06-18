@@ -1,11 +1,28 @@
-import NextAuth from "next-auth";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-import { authConfig } from "@/auth.config";
+/**
+ * Middleware Clerk : protège toutes les pages hors routes publiques.
+ * - `/login`, `/sign-up` : écrans d'authentification (connexion + invitations).
+ * - `/api/cron/*`, `/api/admin/seed` : protégés par `CRON_SECRET` (pas de session).
+ */
+const isPublicRoute = createRouteMatcher([
+  "/login(.*)",
+  "/sign-up(.*)",
+  "/api/cron(.*)",
+  "/api/admin/seed(.*)",
+]);
 
-// Middleware Edge : protège toutes les pages hors routes publiques (cf. authConfig).
-export default NextAuth(authConfig).auth;
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request)) {
+    await auth.protect();
+  }
+});
 
 export const config = {
-  // Exclut les assets statiques et les fichiers internes Next.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    // Toutes les routes sauf les fichiers internes Next et les assets statiques.
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|gif|png|svg|ico|webp|woff2?|ttf|map)).*)",
+    // Toujours exécuter pour les routes API.
+    "/(api|trpc)(.*)",
+  ],
 };

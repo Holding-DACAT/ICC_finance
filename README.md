@@ -26,13 +26,29 @@ Azure : un bouton « Se connecter (mode démo) » ouvre une session administrate
 |---|---|
 | `DATABASE_URL` | PostgreSQL Neon **pooled** (hôte en `-pooler`) — runtime |
 | `DIRECT_URL` | PostgreSQL Neon **direct** — migrations |
-| `AUTH_SECRET` | Secret de signature des sessions (`openssl rand -base64 32`) |
-| `AUTH_URL` | URL publique de l'app (prod : `https://…vercel.app`) |
-| `AUTH_MICROSOFT_ENTRA_ID_ID` | Client ID Entra (vide si mode démo) |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Client secret Entra (vide si mode démo) |
-| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | `https://login.microsoftonline.com/<TENANT>/v2.0` |
-| `USE_INTEGRATION_MOCKS` | `true` = mocks (Entra/Graph) ; `false` = intégrations réelles |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clé publique Clerk (Dashboard → API Keys) |
+| `CLERK_SECRET_KEY` | Clé secrète Clerk |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/login` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
+| `USE_INTEGRATION_MOCKS` | `true` = mocks (Graph) ; `false` = intégrations réelles |
 | `CRON_SECRET` | Protège `/api/cron/*` **et** `/api/admin/seed` |
+
+### Authentification & rôles (Clerk)
+
+L'authentification est gérée par **Clerk** (connexion par e-mail, comptes créés
+**par invitation**). Pour restreindre l'accès, active *« Restrict sign-ups »* dans
+le tableau de bord Clerk : seuls les e-mails invités peuvent activer un compte.
+
+Les **rôles applicatifs** sont stockés dans le `publicMetadata` de chaque
+utilisateur Clerk (Dashboard → Users → *Metadata* → *Public*) :
+
+```json
+{ "role": "ADMIN", "scopedAgencyId": null }
+```
+
+Rôles possibles : `ADMIN`, `RH`, `IT`, `DIRECTEUR_AGENCE`, `LECTURE`. Pour un
+`DIRECTEUR_AGENCE`, renseigner `scopedAgencyId` avec l'id de son agence. En
+l'absence de rôle, l'utilisateur est en **LECTURE** (moindre privilège).
 
 ## Déploiement Vercel + Neon
 

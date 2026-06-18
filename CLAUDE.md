@@ -21,7 +21,7 @@ La cible visuelle est `reference/icc-finance-gestion-rh.jsx`.
 - **Tables** : TanStack Table. **Graphiques** : Recharts.
 - **Formulaires/validation** : React Hook Form + Zod.
 - **ORM / BDD** : Prisma + PostgreSQL **Neon** (serverless). Sur Vercel : `DATABASE_URL` = connexion **pooled** Neon (hôte en `-pooler`) pour le runtime, `DIRECT_URL` = connexion **directe** pour les migrations. Option edge : adaptateur `@prisma/adapter-neon`.
-- **Auth** : Auth.js (NextAuth v5), provider **Microsoft Entra ID (Azure AD)** en SSO + rôles.
+- **Auth** : **Clerk** (`@clerk/nextjs`) — connexion par e-mail, comptes par invitation. Les rôles applicatifs sont portés par le `publicMetadata` Clerk (`role`, `scopedAgencyId`) et lus côté serveur via l'adaptateur `src/auth.ts` (`auth()` → `session.user`).
 - **Intégrations** : Microsoft Graph (comptes AD, bibliothèques SharePoint, état boîte mail).
   Toujours derrière une interface (`lib/integrations/`) avec une implémentation **mock** activable.
 - **Tâches planifiées** : via **Vercel Cron** (`vercel.json`), endpoints `/api/cron/*` protégés par `CRON_SECRET` (pas de scheduler long-running) — recalcul de l'âge du parc, rappels de renouvellement ORIAS, recalcul redevances.
