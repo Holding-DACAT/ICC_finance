@@ -59,6 +59,23 @@ curl -X POST "https://VOTRE-APP/api/admin/seed" -H "Authorization: Bearer $CRON_
 | `pnpm db:deploy` | Applique les migrations (`prisma migrate deploy`) |
 | `pnpm db:seed` | Charge les données de démo |
 
+## Espace import (Liste du Réseau)
+
+Page **`/import`** (réservée aux rôles **ADMIN** / **RH**) : intégration du fichier
+Excel/CSV « Liste du Réseau » transmis par le groupe pour alimenter la base des
+**membres** et des **agences**.
+
+- Formats acceptés : `.xlsx`, `.xls`, `.csv` (feuille « Liste réseau » détectée
+  automatiquement). En-têtes tolérantes aux accents/casse.
+- Flux en deux temps : **Analyser** (dry-run, aperçu ligne par ligne avec statut
+  Création / Mise à jour / Ignorée / Erreur) puis **Intégrer** (écriture en base).
+- Idempotent : les membres sont rapprochés par **e-mail** (upsert), les agences par
+  **nom** ; une nouvelle exécution ne crée pas de doublon.
+- Mapping : `Statut` → fonction, `Fonction` → sous-fonction + catégories ORIAS,
+  `Date départ` → statut INACTIF, `ORIAS`/`N°RCPRO` → inscription ORIAS.
+- **Sécurité/RGPD** : les colonnes de mots de passe (Orias/Afib/Votrasso) ne sont
+  **jamais** importées ni stockées ; chaque import est tracé dans le journal d'audit.
+
 ## Avancement (feuille de route)
 
 Voir `docs/04_FEUILLE_DE_ROUTE.md`. Construction **lot par lot**.
