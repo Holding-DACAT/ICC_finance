@@ -38,7 +38,8 @@ function toFormValues(a: AgencyDTO | null | undefined): AgencyFormValues {
   return {
     name: a?.name ?? "",
     type: a?.type ?? "FRANCHISE",
-    status: a?.status ?? "ACTIF",
+    // Les agences n'utilisent que ACTIF/INACTIF (statut « en cours » réservé aux membres).
+    status: a?.status === "INACTIF" ? "INACTIF" : "ACTIF",
     legalName: a?.legalName ?? "",
     legalForm: a?.legalForm ?? "",
     siren: a?.siren ?? "",

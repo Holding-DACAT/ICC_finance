@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { COMPUTER_STATUS_LABEL } from "@/lib/computer";
 import { formatDate } from "@/lib/format";
+import { ComputerBulkBar } from "./computer-bulk-bar";
 import { ComputerFormDialog } from "./computer-form-dialog";
 import type { AgencyOption, ComputerDTO, MemberOption } from "../types";
 
@@ -176,6 +177,19 @@ export function OrdinateursClient({
           searchPlaceholder="Recherche : nom, série, utilisateur…"
           emptyMessage="Aucun poste pour ces critères."
           footerLabel={(n) => `${n} poste(s)`}
+          enableSelection={canWrite}
+          getRowId={(c) => c.id}
+          renderBulkActions={
+            canWrite
+              ? (selected, clear) => (
+                  <ComputerBulkBar
+                    selected={selected}
+                    clearSelection={clear}
+                    memberOptions={memberOptions}
+                  />
+                )
+              : undefined
+          }
           toolbarExtra={
             <div className="flex flex-wrap gap-2">
               <Select value={stateFilter} onValueChange={setStateFilter}>

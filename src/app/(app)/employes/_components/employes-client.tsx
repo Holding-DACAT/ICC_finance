@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
-import { CONTRACT_LABELS } from "@/lib/labels";
-import { contractTypes } from "@/lib/validations/member";
+import { CONTRACT_LABELS, MEMBER_STATUS_LABELS } from "@/lib/labels";
+import { contractTypes, memberStatuses } from "@/lib/validations/member";
+import { MemberBulkBar } from "./member-bulk-bar";
 import { MemberDetailSheet } from "./member-detail-sheet";
 import { MemberFormDialog } from "./member-form-dialog";
 import type { AgencyOption, MemberDTO } from "../types";
@@ -174,6 +175,19 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
           onRowClick={openDetail}
           emptyMessage="Aucun membre pour ces critères."
           footerLabel={(n) => `${n} membre(s)`}
+          enableSelection={canEdit}
+          getRowId={(m) => m.id}
+          renderBulkActions={
+            canEdit
+              ? (selected, clear) => (
+                  <MemberBulkBar
+                    selected={selected}
+                    clearSelection={clear}
+                    agencies={agencies}
+                  />
+                )
+              : undefined
+          }
           toolbarExtra={
             <div className="flex flex-wrap gap-2">
               <FilterSelect
@@ -181,8 +195,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
                 onChange={setStatusFilter}
                 options={[
                   ["Tous", "Tous statuts"],
-                  ["ACTIF", "Actifs"],
-                  ["INACTIF", "Inactifs"],
+                  ...memberStatuses.map((s) => [s, MEMBER_STATUS_LABELS[s]] as [string, string]),
                 ]}
               />
               <FilterSelect
@@ -206,7 +219,19 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
         />
       </div>
 
-      <MemberDetailSheet member={detailMember} open={detailOpen} onOpenChange={setDetailOpen} />
+      <MemberDetailSheet
+        member={detailMember}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onEdit={
+          canEdit
+            ? (m) => {
+                setDetailOpen(false);
+                openEdit(m);
+              }
+            : undefined
+        }
+      />
       <MemberFormDialog
         agencies={agencies}
         member={formMember}

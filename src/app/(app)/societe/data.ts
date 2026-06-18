@@ -70,7 +70,8 @@ export async function getSocietesData(user: SessionUser): Promise<SocieteData> {
         id: a.id,
         name: a.name,
         type: a.type,
-        status: a.status,
+        // Une agence n'a que ACTIF/INACTIF (statut « en cours » réservé aux membres).
+        status: a.status === "INACTIF" ? "INACTIF" : "ACTIF",
         membersCount: a._count.members,
       };
       if (existing) {

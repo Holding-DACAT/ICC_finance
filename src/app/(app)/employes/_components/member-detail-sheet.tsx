@@ -1,13 +1,14 @@
 "use client";
 
-import { GraduationCap, Laptop, Mail, ShieldCheck, User } from "lucide-react";
+import { GraduationCap, Laptop, Mail, Pencil, ShieldCheck, User } from "lucide-react";
 
 import { Avatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ComplianceBadge, MemberStatusBadge } from "@/components/status-badges";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatDate, monthsSince } from "@/lib/format";
+import { formatDate, formatEur, monthsSince } from "@/lib/format";
 import { ORIAS_LABELS } from "@/lib/labels";
 import type { MemberDTO } from "../types";
 
@@ -15,9 +16,11 @@ interface MemberDetailSheetProps {
   member: MemberDTO | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Ouvre le formulaire d'édition (affiché seulement si fourni). */
+  onEdit?: (member: MemberDTO) => void;
 }
 
-export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
+export function MemberDetailSheet({ member, open, onOpenChange, onEdit }: MemberDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -38,6 +41,16 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                     {member.functionTitle} · {member.agencyName}
                   </div>
                 </div>
+                {onEdit ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => onEdit(member)}
+                  >
+                    <Pencil className="size-3.5" /> Éditer
+                  </Button>
+                ) : null}
               </div>
             </SheetHeader>
 
@@ -116,10 +129,24 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                       ))}
                     </HabilitationSection>
 
-                    {/* Assurances */}
-                    <HabilitationSection title="Assurances">
-                      <Row label="Nom assureur" value={member.orias.rcProInsurer ?? "—"} />
+                    {/* RC Pro */}
+                    <HabilitationSection title="RC Pro">
+                      <Row label="Assureur" value={member.orias.rcProInsurer ?? "—"} />
                       <Row label="N° police / contrat" value={member.orias.rcProPolicy ?? "—"} />
+                      <Row label="Échéance" value={formatDate(member.orias.rcProExpiry)} />
+                    </HabilitationSection>
+
+                    {/* Garantie financière */}
+                    <HabilitationSection title="Garantie financière">
+                      <Row
+                        label="Montant"
+                        value={
+                          member.orias.guaranteeAmount != null
+                            ? formatEur(member.orias.guaranteeAmount)
+                            : "—"
+                        }
+                      />
+                      <Row label="Échéance" value={formatDate(member.orias.guaranteeExpiry)} />
                     </HabilitationSection>
 
                     {/* Associations professionnelles */}

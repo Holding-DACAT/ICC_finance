@@ -22,6 +22,7 @@ function fail(error: string, fileName = "", committed = false): ImportReport {
     ok: false,
     error,
     committed,
+    replaced: false,
     fileName,
     sheetName: null,
     totalRows: 0,
@@ -64,7 +65,8 @@ function readWorkbook(buffer: Buffer): {
  * Espace import — analyse (dry-run) puis intégration du fichier « Liste du
  * Réseau » dans la base RH. Réservé aux rôles ADMIN/RH (cf. CLAUDE.md §4/§5).
  *
- * @param formData `file` (xlsx/xls/csv) + `commit` ("1" pour écrire en base).
+ * @param formData `file` (xlsx/xls/csv) + `commit` ("1" pour écrire en base)
+ *   + `replace` ("1" pour vider d'abord les données RH — mode remplacement complet).
  */
 export async function runImport(formData: FormData): Promise<ImportReport> {
   const session = await auth();
@@ -76,6 +78,8 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
 
   const file = formData.get("file");
   const commit = formData.get("commit") === "1";
+  // Mode remplacement : vide les données RH avant d'intégrer le fichier.
+  const replace = formData.get("replace") === "1";
   if (!(file instanceof File) || file.size === 0) {
     return fail("Aucun fichier fourni.");
   }
@@ -121,8 +125,9 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
   }
 
   // État en base : quels e-mails existent déjà (create vs update) ?
+  // En mode remplacement, la base RH est vidée : tout sera donc une création.
   const existingEmails = new Set<string>();
-  if (importable.length > 0) {
+  if (!replace && importable.length > 0) {
     const found = await prisma.member.findMany({
       where: { email: { in: importable.map((r) => r.email) } },
       select: { email: true },
@@ -136,7 +141,10 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
     const key = r.member!.agencyName.toLowerCase();
     if (!distinctAgencies.has(key)) distinctAgencies.set(key, r.member!.agencyName);
   }
-  const existingAgencies = await prisma.agency.findMany({ select: { id: true, name: true } });
+  // En mode remplacement, toutes les agences seront recréées après la purge.
+  const existingAgencies = replace
+    ? []
+    : await prisma.agency.findMany({ select: { id: true, name: true } });
   const agencyIdByKey = new Map<string, string>();
   for (const a of existingAgencies) agencyIdByKey.set(a.name.toLowerCase(), a.id);
   const agenciesToCreate = [...distinctAgencies].filter(([key]) => !agencyIdByKey.has(key));
@@ -174,6 +182,7 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
   const baseReport: ImportReport = {
     ok: true,
     committed: false,
+    replaced: false,
     fileName: file.name,
     sheetName,
     totalRows: results.length,
@@ -196,6 +205,15 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
   try {
     await prisma.$transaction(
       async (tx) => {
+        // 0) Mode remplacement : on vide d'abord toutes les données RH.
+        //    Périmètre RH uniquement — on conserve Setting, User et AuditLog.
+        //    Toutes les tables qui référencent cet ensemble en font partie :
+        //    le CASCADE reste donc cantonné aux données RH.
+        if (replace) {
+          await tx.$executeRawUnsafe(
+            `TRUNCATE TABLE "TrainingSession", "Training", "OnboardingStep", "OnboardingProcess", "OriasRegistration", "Computer", "AgencyDirector", "Member", "Agency" CASCADE`,
+          );
+        }
         // 1) Agences manquantes.
         for (const [key, label] of agenciesToCreate) {
           const agency = await tx.agency.create({
@@ -267,6 +285,7 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
     diff: {
       fileName: file.name,
       sheetName,
+      replaced: replace,
       created: createdCount,
       updated: updatedCount,
       agenciesCreated: agenciesToCreate.length,
@@ -279,5 +298,5 @@ export async function runImport(formData: FormData): Promise<ImportReport> {
   revalidatePath("/agences");
   revalidatePath("/");
 
-  return { ...baseReport, committed: true };
+  return { ...baseReport, committed: true, replaced: replace };
 }

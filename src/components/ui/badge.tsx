@@ -12,6 +12,7 @@ const badgeVariants = cva(
         success: "bg-state-success",
         warning: "bg-state-warning",
         danger: "bg-state-danger",
+        info: "bg-state-info",
         neutral: "bg-brand-card-soft",
       },
     },

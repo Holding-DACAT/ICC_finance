@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { LicenseTier } from "@prisma/client";
+import type { LicenseTier, Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { writeAudit } from "@/lib/audit";
@@ -12,6 +12,7 @@ export interface ActionResult {
   ok: boolean;
   error?: string;
   id?: string;
+  count?: number;
 }
 
 const WRITE_ROLES = ["ADMIN", "IT"] as const;
@@ -110,5 +111,46 @@ export async function assignComputer(
     return { ok: true, id };
   } catch {
     return { ok: false, error: "Échec de l'attribution." };
+  }
+}
+
+export interface BulkComputerPatch {
+  licenseTier?: LicenseTier;
+  /** Absent = ne pas toucher ; null = libérer ; id = attribuer. */
+  assignedMemberId?: string | null;
+}
+
+/** Modification groupée de postes (licence / attribution). Réservé IT/Admin. */
+export async function bulkUpdateComputers(
+  ids: string[],
+  patch: BulkComputerPatch,
+): Promise<ActionResult> {
+  const access = await requireWrite();
+  if (!access.ok) return { ok: false, error: access.error };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Aucune ligne sélectionnée." };
+  }
+
+  const data: BulkComputerPatch = {};
+  if (patch.licenseTier === "SILVER" || patch.licenseTier === "GOLD") {
+    data.licenseTier = patch.licenseTier;
+  }
+  if ("assignedMemberId" in patch) data.assignedMemberId = patch.assignedMemberId ?? null;
+  if (Object.keys(data).length === 0) {
+    return { ok: false, error: "Aucune modification indiquée." };
+  }
+
+  try {
+    const res = await prisma.computer.updateMany({ where: { id: { in: ids } }, data });
+    await writeAudit({
+      userId: access.userId,
+      action: "UPDATE",
+      entity: "Computer",
+      diff: { bulk: { count: res.count, patch: data } } as unknown as Prisma.InputJsonValue,
+    });
+    revalidatePath("/ordinateurs");
+    return { ok: true, count: res.count };
+  } catch {
+    return { ok: false, error: "Échec de la modification groupée." };
   }
 }
