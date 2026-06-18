@@ -10,6 +10,7 @@ import {
   LogOut,
   Monitor,
   ScrollText,
+  Upload,
   Users,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -25,6 +26,7 @@ const NAV = [
 ] as const;
 
 const NAV_SECONDARY = [
+  { href: "/import", label: "Import", icon: Upload, roles: ["ADMIN", "RH"] as const },
   { href: "/alertes", label: "Alertes", icon: Bell },
   { href: "/journal", label: "Journal d'audit", icon: ScrollText },
 ] as const;
@@ -32,10 +34,14 @@ const NAV_SECONDARY = [
 interface AppSidebarProps {
   userName: string;
   roleLabel: string;
+  role: string;
 }
 
-export function AppSidebar({ userName, roleLabel }: AppSidebarProps) {
+export function AppSidebar({ userName, roleLabel, role }: AppSidebarProps) {
   const pathname = usePathname();
+  const secondary = NAV_SECONDARY.filter(
+    (item) => !("roles" in item) || item.roles.includes(role as "ADMIN" | "RH"),
+  );
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col rounded-r-[18px] bg-brand-sidebar p-4 md:flex">
@@ -73,7 +79,7 @@ export function AppSidebar({ userName, roleLabel }: AppSidebarProps) {
         <div className="mb-1 mt-4 px-3 text-[9.5px] uppercase tracking-[1px] text-text-faint">
           Administration
         </div>
-        {NAV_SECONDARY.map(({ href, label, icon: Icon }) => {
+        {secondary.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link

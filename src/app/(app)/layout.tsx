@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <AppSidebar userName={userName} roleLabel={roleLabel} />
+      <AppSidebar userName={userName} roleLabel={roleLabel} role={session.user.role} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* En-tête mobile (la barre latérale est masquée < md) */}
         <header className="flex items-center gap-2 border-b border-border bg-brand-sidebar px-4 py-3 md:hidden">
