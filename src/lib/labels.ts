@@ -3,10 +3,9 @@ import type { ContractType, NetworkType } from "@prisma/client";
 /** Libellés métier FR (cf. cahier des charges). */
 
 export const CONTRACT_LABELS: Record<ContractType, string> = {
-  CDI: "CDI",
-  CDD: "CDD",
-  MANDAT: "Contrat de Mandat",
-  FRANCHISE: "Contrat de Franchise",
+  MANDATAIRE: "Mandataire",
+  SALARIE: "Salarié",
+  GERANT: "Gérant",
 };
 
 export const NETWORK_LABELS: Record<NetworkType, string> = {

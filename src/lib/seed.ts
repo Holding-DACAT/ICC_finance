@@ -121,10 +121,9 @@ function buildEmail(firstName: string, lastName: string): string {
 
 function mapContract(c: string): ContractType {
   const v = c.toLowerCase();
-  if (v.includes("mandat")) return "MANDAT";
-  if (v.includes("franchise")) return "FRANCHISE";
-  if (v.includes("cdd")) return "CDD";
-  return "CDI";
+  if (v.includes("mandat")) return "MANDATAIRE";
+  if (v.includes("franchise")) return "GERANT";
+  return "SALARIE";
 }
 
 function mapNetwork(n: string): NetworkType {

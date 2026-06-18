@@ -25,10 +25,9 @@ enum AgencyType {
 }
 
 enum ContractType {
-  CDI
-  CDD
-  MANDAT
-  FRANCHISE
+  MANDATAIRE
+  SALARIE
+  GERANT
 }
 
 enum MemberStatus {
