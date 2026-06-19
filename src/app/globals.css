@@ -46,6 +46,7 @@
     --state-success: 137 52% 52%; /* #46C46A */
     --state-warning: 29 86% 55%; /* #EF8A2B */
     --state-danger: 7 72% 56%; /* #E0533F */
+    --state-info: 204 79% 54%; /* #2E9BE6 */
 
     --text-soft: 232 37% 77%;
     --text-faint: 233 28% 64%; /* #8A90BD */

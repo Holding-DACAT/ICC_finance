@@ -37,6 +37,9 @@ export interface MemberDTO {
     renewalDate: string | null;
     rcProInsurer: string | null;
     rcProPolicy: string | null;
+    rcProExpiry: string | null;
+    guaranteeAmount: number | null;
+    guaranteeExpiry: string | null;
     assocLogin: string | null;
     assocPassword: string | null;
   } | null;

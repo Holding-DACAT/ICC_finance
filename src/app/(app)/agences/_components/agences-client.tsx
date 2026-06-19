@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AgencyBulkBar } from "./agency-bulk-bar";
 import { AgencyDetailSheet } from "./agency-detail-sheet";
 import { AgencyFormDialog } from "./agency-form-dialog";
 import type { AgencyDTO, MemberOption } from "../types";
@@ -68,7 +69,7 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
         header: "Statut",
         accessorFn: (a) => a.status,
         cell: ({ row }) => (
-          <Badge variant={row.original.status === "ACTIF" ? "success" : "warning"}>
+          <Badge variant={row.original.status === "ACTIF" ? "success" : "danger"}>
             {row.original.status === "ACTIF" ? "ACTIVE" : "INACTIVE"}
           </Badge>
         ),
@@ -150,6 +151,13 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
           }}
           emptyMessage="Aucune agence pour ces critères."
           footerLabel={(n) => `${n} agence(s)`}
+          enableSelection={canWrite}
+          getRowId={(a) => a.id}
+          renderBulkActions={
+            canWrite
+              ? (selected, clear) => <AgencyBulkBar selected={selected} clearSelection={clear} />
+              : undefined
+          }
           toolbarExtra={
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="h-9 w-[150px]">
@@ -165,7 +173,19 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
         />
       </div>
 
-      <AgencyDetailSheet agency={detail} open={detailOpen} onOpenChange={setDetailOpen} />
+      <AgencyDetailSheet
+        agency={detail}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onEdit={
+          canWrite
+            ? (a) => {
+                setDetailOpen(false);
+                openEdit(a);
+              }
+            : undefined
+        }
+      />
       <AgencyFormDialog
         memberOptions={memberOptions}
         agency={formAgency}

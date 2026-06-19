@@ -23,13 +23,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONTRACT_LABELS, NETWORK_LABELS } from "@/lib/labels";
+import { CONTRACT_LABELS, MEMBER_STATUS_LABELS, NETWORK_LABELS } from "@/lib/labels";
+import { ORIAS_LABELS } from "@/lib/labels";
 import {
+  complianceStatuses,
   contractTypes,
   memberFormSchema,
+  memberStatuses,
   networkTypes,
+  oriasCategories,
   type MemberFormValues,
 } from "@/lib/validations/member";
+
+type OriasCategory = (typeof oriasCategories)[number];
+
+const COMPLIANCE_LABELS: Record<(typeof complianceStatuses)[number], string> = {
+  A_JOUR: "À jour",
+  A_RENOUVELER: "À renouveler",
+  EXPIRE: "Expiré",
+};
 import { createMember, updateMember } from "../actions";
 import type { AgencyOption, MemberDTO } from "../types";
 
@@ -59,6 +71,17 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     agencyId: member?.agencyId ?? "",
     arrivalDate: member?.arrivalDate ? member.arrivalDate.slice(0, 10) : "",
     departureDate: member?.departureDate ? member.departureDate.slice(0, 10) : "",
+    oriasNumber: member?.orias?.oriasNumber ?? "",
+    oriasLogin: member?.orias?.oriasLogin ?? "",
+    oriasCategories: (member?.orias?.categories ?? []) as OriasCategory[],
+    oriasRenewalDate: member?.orias?.renewalDate ? member.orias.renewalDate.slice(0, 10) : "",
+    complianceStatus: member?.orias?.status ?? "A_JOUR",
+    rcProInsurer: member?.orias?.rcProInsurer ?? "",
+    rcProPolicy: member?.orias?.rcProPolicy ?? "",
+    rcProExpiry: member?.orias?.rcProExpiry ? member.orias.rcProExpiry.slice(0, 10) : "",
+    guaranteeAmount: member?.orias?.guaranteeAmount != null ? String(member.orias.guaranteeAmount) : "",
+    guaranteeExpiry: member?.orias?.guaranteeExpiry ? member.orias.guaranteeExpiry.slice(0, 10) : "",
+    assocLogin: member?.orias?.assocLogin ?? "",
   };
 }
 
@@ -101,7 +124,7 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier le membre" : "Créer un membre"}</DialogTitle>
           <DialogDescription>
@@ -213,8 +236,11 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ACTIF">Actif</SelectItem>
-                    <SelectItem value="INACTIF">Inactif</SelectItem>
+                    {memberStatuses.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {MEMBER_STATUS_LABELS[s]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
@@ -226,6 +252,98 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
           </Field>
           <Field label="Date de départ" error={errors.departureDate?.message}>
             <Input type="date" {...register("departureDate")} />
+          </Field>
+
+          {/* --- Habilitation ORIAS --- */}
+          <SectionHeading>Habilitation ORIAS</SectionHeading>
+          <Field label="N° ORIAS" error={errors.oriasNumber?.message}>
+            <Input {...register("oriasNumber")} />
+          </Field>
+          <Field label="Identifiant ORIAS" error={errors.oriasLogin?.message}>
+            <Input {...register("oriasLogin")} />
+          </Field>
+          <Field label="Date de renouvellement" error={errors.oriasRenewalDate?.message}>
+            <Input type="date" {...register("oriasRenewalDate")} />
+          </Field>
+          <Field label="Conformité" error={errors.complianceStatus?.message}>
+            <Controller
+              control={control}
+              name="complianceStatus"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {complianceStatuses.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {COMPLIANCE_LABELS[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <div className="col-span-full flex flex-col gap-1.5">
+            <Label>Catégories ORIAS</Label>
+            <Controller
+              control={control}
+              name="oriasCategories"
+              render={({ field }) => (
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  {oriasCategories.map((cat) => {
+                    const checked = field.value?.includes(cat) ?? false;
+                    return (
+                      <label
+                        key={cat}
+                        title={ORIAS_LABELS[cat]}
+                        className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-2 py-1.5 text-xs"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const set = new Set<OriasCategory>(field.value ?? []);
+                            if (e.target.checked) set.add(cat);
+                            else set.delete(cat);
+                            field.onChange([...set]);
+                          }}
+                        />
+                        <span className="font-semibold">{cat}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            />
+          </div>
+
+          {/* --- RC Pro --- */}
+          <SectionHeading>RC Pro</SectionHeading>
+          <Field label="Assureur" error={errors.rcProInsurer?.message}>
+            <Input {...register("rcProInsurer")} />
+          </Field>
+          <Field label="N° police / contrat" error={errors.rcProPolicy?.message}>
+            <Input {...register("rcProPolicy")} />
+          </Field>
+          <Field label="Échéance" error={errors.rcProExpiry?.message}>
+            <Input type="date" {...register("rcProExpiry")} />
+          </Field>
+
+          {/* --- Garantie financière --- */}
+          <SectionHeading>Garantie financière</SectionHeading>
+          <Field label="Montant (€)" error={errors.guaranteeAmount?.message}>
+            <Input inputMode="numeric" {...register("guaranteeAmount")} />
+          </Field>
+          <Field label="Échéance" error={errors.guaranteeExpiry?.message}>
+            <Input type="date" {...register("guaranteeExpiry")} />
+          </Field>
+
+          {/* --- Associations professionnelles --- */}
+          <SectionHeading>Associations professionnelles</SectionHeading>
+          <Field label="Identifiant" error={errors.assocLogin?.message}>
+            <Input {...register("assocLogin")} />
           </Field>
 
           {serverError ? (
@@ -249,6 +367,14 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="col-span-full mt-2 border-t border-border pt-3 text-[11px] font-extrabold uppercase tracking-wide text-primary">
+      {children}
+    </div>
   );
 }
 

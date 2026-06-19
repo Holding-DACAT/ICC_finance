@@ -1,6 +1,12 @@
-import type { ContractType, NetworkType } from "@prisma/client";
+import type { ContractType, MemberStatus, NetworkType } from "@prisma/client";
 
 /** Libellés métier FR (cf. cahier des charges). */
+
+export const MEMBER_STATUS_LABELS: Record<MemberStatus, string> = {
+  ACTIF: "Actif",
+  INACTIF: "Inactif",
+  EN_COURS_ENREGISTREMENT: "En cours d'enregistrement",
+};
 
 export const CONTRACT_LABELS: Record<ContractType, string> = {
   CDI: "CDI",

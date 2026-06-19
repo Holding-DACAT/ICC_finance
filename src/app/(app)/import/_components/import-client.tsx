@@ -32,6 +32,7 @@ export function ImportClient() {
   const [file, setFile] = useState<File | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [replace, setReplace] = useState(false);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -42,9 +43,19 @@ export function ImportClient() {
 
   const submit = (commit: boolean) => {
     if (!file) return;
+    // Garde-fou : l'intégration en mode remplacement est irréversible.
+    if (commit && replace) {
+      const ok = window.confirm(
+        "Mode remplacement : toutes les données RH existantes (membres, agences, ORIAS, " +
+          "formations, onboarding, ordinateurs) seront définitivement supprimées avant " +
+          "l'intégration du fichier. Confirmer ?",
+      );
+      if (!ok) return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     formData.append("commit", commit ? "1" : "0");
+    formData.append("replace", replace ? "1" : "0");
     startTransition(async () => {
       const result = await runImport(formData);
       setReport(result);
@@ -54,6 +65,7 @@ export function ImportClient() {
   const reset = () => {
     setFile(null);
     setReport(null);
+    setReplace(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -118,6 +130,28 @@ export function ImportClient() {
           </p>
         </div>
 
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-xl border border-state-danger/30 bg-state-danger/5 p-3">
+          <input
+            type="checkbox"
+            checked={replace}
+            onChange={(e) => {
+              setReplace(e.target.checked);
+              setReport(null);
+            }}
+            className="mt-0.5 size-4 accent-state-danger"
+          />
+          <span className="text-[12.5px] leading-snug">
+            <span className="font-semibold text-state-danger">
+              Remplacer toutes les données existantes
+            </span>
+            <span className="block text-text-soft">
+              Vide la base RH (membres, agences, ORIAS, formations, onboarding, ordinateurs) avant
+              d&apos;intégrer le fichier — à utiliser pour réimporter une liste complète. Les
+              réglages, comptes et le journal d&apos;audit sont conservés. Action irréversible.
+            </span>
+          </span>
+        </label>
+
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button type="button" onClick={() => submit(false)} disabled={!file || pending}>
             {pending && !report ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -127,12 +161,18 @@ export function ImportClient() {
             <Button
               type="button"
               variant="default"
-              className="bg-state-success hover:bg-state-success/90"
+              className={cn(
+                replace
+                  ? "bg-state-danger hover:bg-state-danger/90"
+                  : "bg-state-success hover:bg-state-success/90",
+              )}
               onClick={() => submit(true)}
               disabled={pending}
             >
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Intégrer {importableCount} membre(s) en base
+              {replace
+                ? `Vider et intégrer ${importableCount} membre(s)`
+                : `Intégrer ${importableCount} membre(s) en base`}
             </Button>
           ) : null}
           {report ? (
@@ -158,7 +198,8 @@ export function ImportClient() {
       {report?.committed ? (
         <div className="flex items-start gap-2 rounded-xl border border-state-success/30 bg-state-success/5 p-4 text-sm font-semibold text-state-success">
           <CheckCircle2 className="mt-px size-4 shrink-0" />
-          Intégration terminée : {report.created} création(s), {report.updated} mise(s) à jour
+          {report.replaced ? "Base RH vidée puis réintégrée : " : "Intégration terminée : "}
+          {report.created} création(s), {report.updated} mise(s) à jour
           {report.agenciesCreated > 0 ? `, ${report.agenciesCreated} agence(s) créée(s)` : ""}.
         </div>
       ) : null}

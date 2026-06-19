@@ -66,6 +66,7 @@ const config: Config = {
           success: "hsl(var(--state-success))",
           warning: "hsl(var(--state-warning))",
           danger: "hsl(var(--state-danger))",
+          info: "hsl(var(--state-info))",
         },
         "text-soft": "hsl(var(--text-soft))",
         "text-faint": "hsl(var(--text-faint))",
