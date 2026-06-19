@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/onboarding", label: "Onboarding", icon: KanbanSquare },
-  { href: "/employes", label: "Employés", icon: Users },
+  { href: "/employes", label: "Équipes", icon: Users },
   { href: "/agences", label: "Agences", icon: Building2 },
   { href: "/societe", label: "Société", icon: Landmark },
   { href: "/ordinateurs", label: "Ordinateurs", icon: Monitor },

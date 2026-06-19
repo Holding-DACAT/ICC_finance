@@ -1,4 +1,4 @@
-import type { ComplianceStatus, MemberStatus } from "@prisma/client";
+import type { ComplianceStatus, MemberStatus, OnboardingStatus } from "@prisma/client";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -11,7 +11,18 @@ const MEMBER_STATUS_META: Record<
   EN_COURS_ENREGISTREMENT: { label: "EN COURS D'ENREG.", variant: "info" },
 };
 
-export function MemberStatusBadge({ status }: { status: MemberStatus }) {
+export function MemberStatusBadge({
+  status,
+  onboardingStatus,
+}: {
+  status: MemberStatus;
+  onboardingStatus?: OnboardingStatus | null;
+}) {
+  // Tant que la personne est dans le kanban (intégration non terminée),
+  // on affiche « En cours d'intégration » (bleu) plutôt que son statut.
+  if (onboardingStatus && onboardingStatus !== "TERMINE") {
+    return <Badge variant="info">En cours d&apos;intégration</Badge>;
+  }
   const meta = MEMBER_STATUS_META[status];
   return <Badge variant={meta.variant}>{meta.label}</Badge>;
 }
