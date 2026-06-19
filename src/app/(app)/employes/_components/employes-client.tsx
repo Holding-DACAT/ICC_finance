@@ -95,7 +95,12 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
         id: "statut",
         header: "Statut",
         accessorFn: (m) => m.status,
-        cell: ({ row }) => <MemberStatusBadge status={row.original.status} />,
+        cell: ({ row }) => (
+          <MemberStatusBadge
+            status={row.original.status}
+            onboardingStatus={row.original.onboardingStatus}
+          />
+        ),
       },
       {
         id: "fonction",

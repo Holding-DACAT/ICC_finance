@@ -86,7 +86,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onEdit }: Member
                   <Info label="Date d'arrivée" value={formatDate(member.arrivalDate)} />
                   <Info label="Date de départ" value={formatDate(member.departureDate)} />
                   <Info label="Statut">
-                    <MemberStatusBadge status={member.status} />
+                    <MemberStatusBadge
+                      status={member.status}
+                      onboardingStatus={member.onboardingStatus}
+                    />
                   </Info>
                   <Info label="Fonction" value={member.functionTitle} />
                   <Info label="SIREN" value={member.siren ?? "—"} />
