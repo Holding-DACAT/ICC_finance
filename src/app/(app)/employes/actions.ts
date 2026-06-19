@@ -6,6 +6,7 @@ import type { ContractType, MemberStatus, Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { writeAudit } from "@/lib/audit";
+import { getOnboardingStages } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
 import { canAccessAgency } from "@/lib/rbac";
 import {
@@ -122,15 +123,10 @@ export async function createMember(values: MemberFormValues): Promise<ActionResu
   }
 }
 
-const FALLBACK_STEPS = ["Création AD", "Boîte mail", "Attribution PC", "Accès SharePoint"];
-
 /** Déclenche un processus d'onboarding pour un nouveau membre (cf. lot 5). */
 async function startOnboarding(memberId: string, assignedToId?: string | null): Promise<void> {
   try {
-    const setting = await prisma.setting.findUnique({
-      where: { key: "onboarding.defaultSteps" },
-    });
-    const labels = Array.isArray(setting?.value) ? (setting?.value as string[]) : FALLBACK_STEPS;
+    const labels = await getOnboardingStages();
     // Vérifie que l'assigné est bien un compte applicatif existant (FK).
     const assignee = assignedToId
       ? await prisma.user.findUnique({ where: { id: assignedToId }, select: { id: true } })
