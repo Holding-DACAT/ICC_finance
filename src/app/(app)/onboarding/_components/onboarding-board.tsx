@@ -2,7 +2,16 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, KanbanSquare, Plus, UserPlus } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  KanbanSquare,
+  Plus,
+  Settings2,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 
 import { Avatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
@@ -14,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,9 +34,10 @@ import {
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OnboardingCard } from "@/lib/onboarding";
-import { moveOnboardingCard, startOnboarding } from "../actions";
+import { moveOnboardingCard, saveOnboardingStages, startOnboarding } from "../actions";
 
 interface OnboardingBoardProps {
+  stages: string[];
   columns: string[];
   cards: OnboardingCard[];
   eligibleMembers: { id: string; name: string }[];
@@ -34,6 +45,7 @@ interface OnboardingBoardProps {
 }
 
 export function OnboardingBoard({
+  stages,
   columns,
   cards,
   eligibleMembers,
@@ -78,7 +90,10 @@ export function OnboardingBoard({
             : "Vue en lecture seule du parcours d'intégration."}
         </p>
         {canWrite ? (
-          <StartOnboardingButton eligibleMembers={eligibleMembers} />
+          <div className="flex items-center gap-2">
+            <ManageStagesButton stages={stages} />
+            <StartOnboardingButton eligibleMembers={eligibleMembers} />
+          </div>
         ) : null}
       </div>
 
@@ -268,6 +283,149 @@ function StartOnboardingButton({
               disabled={isPending || eligibleMembers.length === 0}
             >
               {isPending ? "Démarrage…" : "Démarrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function ManageStagesButton({ stages }: { stages: string[] }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string[]>(stages);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Réinitialise le brouillon à l'ouverture.
+  useEffect(() => {
+    if (open) {
+      setDraft(stages);
+      setError(null);
+    }
+  }, [open, stages]);
+
+  function setLabel(index: number, value: string) {
+    setDraft((prev) => prev.map((s, i) => (i === index ? value : s)));
+  }
+  function remove(index: number) {
+    setDraft((prev) => prev.filter((_, i) => i !== index));
+  }
+  function add() {
+    setDraft((prev) => [...prev, ""]);
+  }
+  function moveStage(index: number, dir: -1 | 1) {
+    setDraft((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function submit() {
+    const cleaned = draft.map((s) => s.trim());
+    if (cleaned.some((s) => s === "")) {
+      setError("Les libellés ne peuvent pas être vides.");
+      return;
+    }
+    if (cleaned.length === 0) {
+      setError("Au moins une étape est requise.");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const res = await saveOnboardingStages(cleaned);
+      if (!res.ok) {
+        setError(res.error ?? "Échec de l'enregistrement.");
+        return;
+      }
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Settings2 className="size-4" /> Gérer les étapes
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="size-5" /> Étapes du kanban
+            </DialogTitle>
+            <DialogDescription>
+              Ajoutez, renommez, réordonnez ou supprimez les étapes d&apos;intégration. Les
+              onboardings en cours sont réalignés automatiquement.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+            {draft.map((label, index) => (
+              <div key={index} className="flex items-center gap-1.5">
+                <span className="w-5 shrink-0 text-center text-[11px] font-bold text-text-faint">
+                  {index + 1}
+                </span>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(index, e.target.value)}
+                  placeholder="Libellé de l'étape"
+                  className="h-9"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  disabled={index === 0}
+                  onClick={() => moveStage(index, -1)}
+                  aria-label="Monter l'étape"
+                >
+                  <ArrowUp className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  disabled={index === draft.length - 1}
+                  onClick={() => moveStage(index, 1)}
+                  aria-label="Descendre l'étape"
+                >
+                  <ArrowDown className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0 text-state-danger"
+                  disabled={draft.length <= 1}
+                  onClick={() => remove(index)}
+                  aria-label="Supprimer l'étape"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button variant="outline" size="sm" className="w-full" onClick={add} disabled={draft.length >= 12}>
+            <Plus className="size-4" /> Ajouter une étape
+          </Button>
+
+          {error ? <p className="text-sm font-semibold text-state-danger">{error}</p> : null}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button size="sm" onClick={submit} disabled={isPending}>
+              {isPending ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>

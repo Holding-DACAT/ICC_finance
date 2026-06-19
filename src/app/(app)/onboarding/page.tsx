@@ -26,6 +26,7 @@ export default async function OnboardingPage() {
 
       {board.available ? (
         <OnboardingBoard
+          stages={board.stages}
           columns={board.columns}
           cards={board.cards}
           eligibleMembers={board.eligibleMembers}

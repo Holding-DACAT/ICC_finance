@@ -5,9 +5,9 @@ import type { OnboardingStatus, OnboardingStepStatus } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { writeAudit } from "@/lib/audit";
-import { DONE_COLUMN_INDEX } from "@/lib/onboarding";
-import { ONBOARDING_STAGES } from "@/lib/onboarding-stages";
+import { deriveProgress, getOnboardingStages, ONBOARDING_STAGES_SETTING_KEY } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
+import { onboardingStagesSchema } from "@/lib/validations/onboarding";
 
 export interface ActionResult {
   ok: boolean;
@@ -46,8 +46,8 @@ export async function moveOnboardingCard(
   if (!process) return { ok: false, error: "Onboarding introuvable." };
 
   const steps = process.steps;
-  // Au-delà des étapes disponibles → on considère le parcours terminé.
-  const isDone = targetColumnIndex >= DONE_COLUMN_INDEX || targetColumnIndex >= steps.length;
+  // La colonne finale (index = nombre d'étapes) marque le parcours terminé.
+  const isDone = targetColumnIndex >= steps.length;
   const target = Math.max(0, Math.min(targetColumnIndex, steps.length));
 
   const now = new Date();
@@ -99,6 +99,8 @@ export async function startOnboarding(memberId: string): Promise<ActionResult> {
   const existing = await prisma.onboardingProcess.findUnique({ where: { memberId } });
   if (existing) return { ok: false, error: "Ce membre a déjà un onboarding." };
 
+  const stages = await getOnboardingStages();
+
   try {
     const created = await prisma.onboardingProcess.create({
       data: {
@@ -107,7 +109,7 @@ export async function startOnboarding(memberId: string): Promise<ActionResult> {
         progress: 0,
         assignedToId: access.userId ?? null,
         steps: {
-          create: ONBOARDING_STAGES.map((label, idx) => ({
+          create: stages.map((label, idx) => ({
             label,
             order: idx + 1,
             status: (idx === 0 ? "EN_COURS" : "A_FAIRE") as OnboardingStepStatus,
@@ -128,5 +130,81 @@ export async function startOnboarding(memberId: string): Promise<ActionResult> {
     return { ok: true, id: created.id };
   } catch {
     return { ok: false, error: "Échec du démarrage de l'onboarding." };
+  }
+}
+
+/**
+ * Enregistre la liste éditable des étapes du kanban et réaligne les étapes de
+ * tous les onboardings existants : les positions conservées gardent leur état,
+ * les nouvelles sont « à faire », les positions retirées sont supprimées.
+ */
+export async function saveOnboardingStages(stagesInput: string[]): Promise<ActionResult> {
+  const access = await requireWrite();
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const parsed = onboardingStagesSchema.safeParse({ stages: stagesInput });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Étapes invalides." };
+  }
+  const stages = parsed.data.stages;
+
+  try {
+    const processes = await prisma.onboardingProcess.findMany({
+      include: { steps: { orderBy: { order: "asc" } } },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.setting.upsert({
+        where: { key: ONBOARDING_STAGES_SETTING_KEY },
+        update: { value: stages },
+        create: { key: ONBOARDING_STAGES_SETTING_KEY, value: stages },
+      });
+
+      for (const process of processes) {
+        // Mise à jour / création des étapes par position.
+        for (let i = 0; i < stages.length; i++) {
+          const existing = process.steps[i];
+          if (existing) {
+            if (existing.label !== stages[i]) {
+              await tx.onboardingStep.update({
+                where: { id: existing.id },
+                data: { label: stages[i] },
+              });
+            }
+          } else {
+            await tx.onboardingStep.create({
+              data: { processId: process.id, label: stages[i], order: i + 1, status: "A_FAIRE" },
+            });
+          }
+        }
+        // Suppression des étapes au-delà de la nouvelle longueur.
+        const surplus = process.steps.slice(stages.length);
+        if (surplus.length > 0) {
+          await tx.onboardingStep.deleteMany({
+            where: { id: { in: surplus.map((s) => s.id) } },
+          });
+        }
+        // Recalcule le statut/avancement sur les étapes conservées.
+        const remaining = process.steps.slice(0, stages.length);
+        const { status, progress } = deriveProgress(remaining);
+        await tx.onboardingProcess.update({
+          where: { id: process.id },
+          data: { status, progress },
+        });
+      }
+    });
+
+    await writeAudit({
+      userId: access.userId,
+      action: "UPDATE",
+      entity: "Setting",
+      entityId: ONBOARDING_STAGES_SETTING_KEY,
+      diff: { stages },
+    });
+    revalidatePath("/onboarding");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Échec de l'enregistrement des étapes." };
   }
 }
