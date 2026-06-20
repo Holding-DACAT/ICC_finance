@@ -9,10 +9,15 @@ import { getEmployesData } from "./data";
 
 export const dynamic = "force-dynamic";
 
-export default async function EmployesPage() {
+export default async function EmployesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ focus?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const { focus } = await searchParams;
   const { role } = session.user;
   const { members, agencies, kpis, available } = await getEmployesData(session.user);
 
@@ -51,6 +56,7 @@ export default async function EmployesPage() {
           agencies={agencies}
           canCreate={canCreate}
           canEdit={canEdit}
+          initialFocusId={focus}
         />
       ) : (
         <Section title="Utilisateurs" icon={Users}>

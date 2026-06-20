@@ -9,10 +9,15 @@ import { getAgencesData } from "./data";
 
 export const dynamic = "force-dynamic";
 
-export default async function AgencesPage() {
+export default async function AgencesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ focus?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const { focus } = await searchParams;
   const { agencies, memberOptions, kpis, available } = await getAgencesData(session.user);
   const canWrite = session.user.role === "ADMIN" || session.user.role === "RH";
 
@@ -31,7 +36,12 @@ export default async function AgencesPage() {
       </div>
 
       {available ? (
-        <AgencesClient agencies={agencies} memberOptions={memberOptions} canWrite={canWrite} />
+        <AgencesClient
+          agencies={agencies}
+          memberOptions={memberOptions}
+          canWrite={canWrite}
+          initialFocusId={focus}
+        />
       ) : (
         <Section title="Agences" icon={Building2}>
           <p className="text-sm font-semibold text-state-warning">

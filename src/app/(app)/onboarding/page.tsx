@@ -35,7 +35,6 @@ export default async function OnboardingPage() {
           stages={board.stages}
           columns={board.columns}
           cards={board.cards}
-          eligibleMembers={board.eligibleMembers}
           canWrite={canWrite}
           members={employes.members}
           agencies={employes.agencies}
