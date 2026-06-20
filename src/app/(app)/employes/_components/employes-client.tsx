@@ -30,6 +30,24 @@ interface EmployesClientProps {
   canEdit: boolean;
 }
 
+/** Clé du statut « En cours d'intégration » (dérivé de l'onboarding, non stocké). */
+const EN_COURS_INTEGRATION = "EN_COURS_INTEGRATION";
+
+/**
+ * Statut effectif affiché pour un membre — identique à la logique du badge
+ * (cf. MemberStatusBadge) afin que le filtre Statut reste cohérent avec ce
+ * qui est montré dans le tableau.
+ */
+function memberDisplayStatus(m: MemberDTO): string {
+  if (m.onboardingStatus && m.onboardingStatus !== "TERMINE") return EN_COURS_INTEGRATION;
+  return m.status;
+}
+
+const STATUS_FILTER_LABELS: Record<string, string> = {
+  [EN_COURS_INTEGRATION]: "En cours d'intégration",
+  ...MEMBER_STATUS_LABELS,
+};
+
 export function EmployesClient({ members, agencies, canCreate, canEdit }: EmployesClientProps) {
   const [statusFilter, setStatusFilter] = useState("Tous");
   const [contractFilter, setContractFilter] = useState("Tous");
@@ -44,7 +62,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
     () =>
       members.filter(
         (m) =>
-          (statusFilter === "Tous" || m.status === statusFilter) &&
+          (statusFilter === "Tous" || memberDisplayStatus(m) === statusFilter) &&
           (contractFilter === "Tous" || m.contractType === contractFilter) &&
           (agencyFilter === "Tous" || m.agencyId === agencyFilter),
       ),
@@ -94,7 +112,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
       {
         id: "statut",
         header: "Statut",
-        accessorFn: (m) => m.status,
+        accessorFn: (m) => STATUS_FILTER_LABELS[memberDisplayStatus(m)] ?? m.status,
         cell: ({ row }) => (
           <MemberStatusBadge
             status={row.original.status}
@@ -200,6 +218,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
                 onChange={setStatusFilter}
                 options={[
                   ["Tous", "Tous statuts"],
+                  [EN_COURS_INTEGRATION, STATUS_FILTER_LABELS[EN_COURS_INTEGRATION]],
                   ...memberStatuses.map((s) => [s, MEMBER_STATUS_LABELS[s]] as [string, string]),
                 ]}
               />
