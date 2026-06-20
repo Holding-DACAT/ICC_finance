@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -34,6 +34,9 @@ import {
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OnboardingCard } from "@/lib/onboarding";
+import { MemberDetailSheet } from "@/app/(app)/employes/_components/member-detail-sheet";
+import { MemberFormDialog } from "@/app/(app)/employes/_components/member-form-dialog";
+import type { AgencyOption, MemberDTO } from "@/app/(app)/employes/types";
 import { moveOnboardingCard, saveOnboardingStages, startOnboarding } from "../actions";
 
 interface OnboardingBoardProps {
@@ -42,6 +45,10 @@ interface OnboardingBoardProps {
   cards: OnboardingCard[];
   eligibleMembers: { id: string; name: string }[];
   canWrite: boolean;
+  /** Fiches complètes des membres, pour ouverture/édition depuis une carte. */
+  members: MemberDTO[];
+  agencies: AgencyOption[];
+  canEditMembers: boolean;
 }
 
 export function OnboardingBoard({
@@ -50,6 +57,9 @@ export function OnboardingBoard({
   cards,
   eligibleMembers,
   canWrite,
+  members,
+  agencies,
+  canEditMembers,
 }: OnboardingBoardProps) {
   const router = useRouter();
   const [items, setItems] = useState(cards);
@@ -57,6 +67,20 @@ export function OnboardingBoard({
   const [overCol, setOverCol] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Fiche membre ouverte depuis une carte (consultation + édition).
+  const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+  const [detailMember, setDetailMember] = useState<MemberDTO | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [formMember, setFormMember] = useState<MemberDTO | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+
+  function openMemberDetail(memberId: string) {
+    const member = membersById.get(memberId);
+    if (!member) return;
+    setDetailMember(member);
+    setDetailOpen(true);
+  }
 
   // Resynchronise après un revalidate / refresh serveur.
   useEffect(() => setItems(cards), [cards]);
@@ -147,9 +171,22 @@ export function OnboardingBoard({
                       setDragId(null);
                       setOverCol(null);
                     }}
+                    onClick={() => {
+                      // Un drag réel supprime le click ; on garde un garde-fou.
+                      if (!dragId) openMemberDetail(card.memberId);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openMemberDetail(card.memberId);
+                      }
+                    }}
+                    title="Ouvrir la fiche du membre"
                     className={cn(
-                      "rounded-lg border border-border bg-background p-2.5 shadow-sm transition-opacity",
-                      canWrite && "cursor-grab active:cursor-grabbing",
+                      "rounded-lg border border-border bg-background p-2.5 shadow-sm transition-opacity hover:border-primary/50",
+                      canWrite ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
                       dragId === card.id && "opacity-50",
                       isPending && "pointer-events-none",
                     )}
@@ -199,6 +236,27 @@ export function OnboardingBoard({
           );
         })}
       </div>
+
+      <MemberDetailSheet
+        member={detailMember}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onEdit={
+          canEditMembers
+            ? (m) => {
+                setDetailOpen(false);
+                setFormMember(m);
+                setFormOpen(true);
+              }
+            : undefined
+        }
+      />
+      <MemberFormDialog
+        agencies={agencies}
+        member={formMember}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+      />
     </div>
   );
 }
