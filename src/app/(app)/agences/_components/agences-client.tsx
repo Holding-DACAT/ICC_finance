@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Folder, Pencil, Plus } from "lucide-react";
 
@@ -24,14 +24,31 @@ interface AgencesClientProps {
   agencies: AgencyDTO[];
   memberOptions: MemberOption[];
   canWrite: boolean;
+  /** Id d'agence à ouvrir automatiquement (deep-link depuis la recherche). */
+  initialFocusId?: string;
 }
 
-export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClientProps) {
+export function AgencesClient({
+  agencies,
+  memberOptions,
+  canWrite,
+  initialFocusId,
+}: AgencesClientProps) {
   const [typeFilter, setTypeFilter] = useState("Tous");
   const [detail, setDetail] = useState<AgencyDTO | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [formAgency, setFormAgency] = useState<AgencyDTO | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Ouvre automatiquement la fiche ciblée par la recherche globale (?focus=…).
+  useEffect(() => {
+    if (!initialFocusId) return;
+    const a = agencies.find((x) => x.id === initialFocusId);
+    if (a) {
+      setDetail(a);
+      setDetailOpen(true);
+    }
+  }, [initialFocusId, agencies]);
 
   const filtered = useMemo(
     () => agencies.filter((a) => typeFilter === "Tous" || a.type === typeFilter),

@@ -24,26 +24,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OnboardingCard } from "@/lib/onboarding";
 import { MemberDetailSheet } from "@/app/(app)/employes/_components/member-detail-sheet";
 import { MemberFormDialog } from "@/app/(app)/employes/_components/member-form-dialog";
 import type { AgencyOption, MemberDTO } from "@/app/(app)/employes/types";
-import { moveOnboardingCard, saveOnboardingStages, startOnboarding } from "../actions";
+import { moveOnboardingCard, saveOnboardingStages } from "../actions";
 
 interface OnboardingBoardProps {
   stages: string[];
   columns: string[];
   cards: OnboardingCard[];
-  eligibleMembers: { id: string; name: string }[];
   canWrite: boolean;
   /** Fiches complètes des membres, pour ouverture/édition depuis une carte. */
   members: MemberDTO[];
@@ -55,7 +47,6 @@ export function OnboardingBoard({
   stages,
   columns,
   cards,
-  eligibleMembers,
   canWrite,
   members,
   agencies,
@@ -116,7 +107,15 @@ export function OnboardingBoard({
         {canWrite ? (
           <div className="flex items-center gap-2">
             <ManageStagesButton stages={stages} />
-            <StartOnboardingButton eligibleMembers={eligibleMembers} />
+            <Button
+              size="sm"
+              onClick={() => {
+                setFormMember(null);
+                setFormOpen(true);
+              }}
+            >
+              <UserPlus className="size-4" /> Créer un collaborateur
+            </Button>
           </div>
         ) : null}
       </div>
@@ -258,94 +257,6 @@ export function OnboardingBoard({
         onOpenChange={setFormOpen}
       />
     </div>
-  );
-}
-
-function StartOnboardingButton({
-  eligibleMembers,
-}: {
-  eligibleMembers: { id: string; name: string }[];
-}) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [memberId, setMemberId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function submit() {
-    if (!memberId) {
-      setError("Sélectionnez un membre.");
-      return;
-    }
-    setError(null);
-    startTransition(async () => {
-      const res = await startOnboarding(memberId);
-      if (!res.ok) {
-        setError(res.error ?? "Échec du démarrage.");
-        return;
-      }
-      setOpen(false);
-      setMemberId("");
-      router.refresh();
-    });
-  }
-
-  return (
-    <>
-      <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus className="size-4" /> Démarrer un onboarding
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="size-5" /> Démarrer un onboarding
-            </DialogTitle>
-            <DialogDescription>
-              Lance le parcours d&apos;intégration d&apos;un nouveau collaborateur.
-            </DialogDescription>
-          </DialogHeader>
-
-          {eligibleMembers.length === 0 ? (
-            <p className="text-sm text-text-soft">
-              Tous les membres actifs ont déjà un onboarding.
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold">Collaborateur</label>
-              <Select value={memberId} onValueChange={setMemberId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un membre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {eligibleMembers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {error ? <p className="text-sm font-semibold text-state-danger">{error}</p> : null}
-
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              size="sm"
-              onClick={submit}
-              disabled={isPending || eligibleMembers.length === 0}
-            >
-              {isPending ? "Démarrage…" : "Démarrer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
 
