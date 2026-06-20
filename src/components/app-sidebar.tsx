@@ -12,6 +12,7 @@ import {
   LogOut,
   Monitor,
   ScrollText,
+  ShieldCheck,
   Upload,
   Users,
 } from "lucide-react";
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/societe", label: "Société", icon: Landmark },
   { href: "/ordinateurs", label: "Ordinateurs", icon: Monitor },
   { href: "/redevance", label: "Redevance info.", icon: BadgeEuro },
+  { href: "/habilitations", label: "Habilitations", icon: ShieldCheck },
 ] as const;
 
 const NAV_SECONDARY = [

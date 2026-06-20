@@ -1,4 +1,9 @@
-import type { ComplianceStatus, MemberStatus, OnboardingStatus } from "@prisma/client";
+import type {
+  ComplianceStatus,
+  HabilitationStatus,
+  MemberStatus,
+  OnboardingStatus,
+} from "@prisma/client";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -37,4 +42,17 @@ export function ComplianceBadge({ status }: { status: ComplianceStatus }) {
   const variant =
     status === "A_JOUR" ? "success" : status === "A_RENOUVELER" ? "warning" : "danger";
   return <Badge variant={variant}>{COMPLIANCE_LABEL[status]}</Badge>;
+}
+
+const HABILITATION_LABEL: Record<HabilitationStatus, string> = {
+  VALIDEE: "Validée",
+  A_VALIDER: "À valider",
+};
+
+export function HabilitationBadge({ status }: { status: HabilitationStatus }) {
+  return (
+    <Badge variant={status === "VALIDEE" ? "success" : "warning"}>
+      {HABILITATION_LABEL[status]}
+    </Badge>
+  );
 }

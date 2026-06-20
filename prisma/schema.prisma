@@ -59,6 +59,13 @@ enum ComplianceStatus {
   EXPIRE
 }
 
+// Statut annuel d'habilitation des équipes. Remis à zéro (A_VALIDER) chaque
+// 1er janvier par le cron `habilitation-reset`, puis confirmé (VALIDEE) dans l'année.
+enum HabilitationStatus {
+  VALIDEE
+  A_VALIDER
+}
+
 enum OnboardingStatus {
   AUCUN
   EN_COURS
@@ -190,6 +197,10 @@ model OriasRegistration {
   registrationDate DateTime?
   renewalDate      DateTime?
   status           ComplianceStatus @default(A_JOUR)
+  // Habilitation annuelle des équipes (remise à zéro au 1er janvier).
+  habilitationStatus      HabilitationStatus @default(A_VALIDER)
+  habilitationYear        Int?             // année de la dernière validation
+  habilitationValidatedAt DateTime?        // horodatage de la dernière validation
   rcProInsurer     String?          // Assurances — nom assureur
   rcProPolicy      String?          // Assurances — n° police / contrat
   rcProExpiry      DateTime?

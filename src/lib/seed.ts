@@ -545,6 +545,10 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
                 registrationDate: new Date(arrivee),
                 renewalDate: new Date("2026-02-28"),
                 status: "A_JOUR" as ComplianceStatus,
+                // Habilitation annuelle : ~2/3 déjà validées, le reste à valider.
+                habilitationStatus: i % 3 === 0 ? "A_VALIDER" : "VALIDEE",
+                habilitationYear: i % 3 === 0 ? null : 2026,
+                habilitationValidatedAt: i % 3 === 0 ? null : new Date("2026-01-05"),
                 rcProInsurer: "MMA",
                 rcProPolicy: `POL-${slug(nom).toUpperCase().slice(0, 5)}-2026`,
                 assocLogin: `${slug(prenom)}.${slug(nom)}`,
