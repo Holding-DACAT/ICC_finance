@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { ActiveToggleButton } from "@/components/active-toggle-button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -22,30 +23,27 @@ import type { SocieteDTO } from "../data";
 
 interface SocieteClientProps {
   societes: SocieteDTO[];
+  canWrite: boolean;
 }
 
-export function SocieteClient({ societes }: SocieteClientProps) {
-  // Par défaut, à l'ouverture de la vue, on ne montre que les éléments actifs
-  // (agences actives + décompte des membres actifs).
+export function SocieteClient({ societes, canWrite }: SocieteClientProps) {
+  // Par défaut, à l'ouverture de la vue, on ne montre que les sociétés actives
+  // (au moins une agence active) avec le décompte des membres actifs.
   const [statusFilter, setStatusFilter] = useState<"ACTIF" | "Tous">("ACTIF");
   const activeOnly = statusFilter === "ACTIF";
 
   const rows = useMemo(() => {
-    if (!activeOnly) {
-      return societes.map((s) => ({
-        societe: s,
-        agencies: s.agencies,
-        membersCount: s.membersTotal,
-      }));
-    }
     return societes
-      .map((s) => ({
-        societe: s,
-        agencies: s.agencies.filter((a) => a.status === "ACTIF"),
-        membersCount: s.membersActiveTotal,
-      }))
-      .filter((r) => r.agencies.length > 0);
+      .map((s) => {
+        const active = s.agencies.some((a) => a.status === "ACTIF");
+        const agencies = activeOnly ? s.agencies.filter((a) => a.status === "ACTIF") : s.agencies;
+        const membersCount = activeOnly ? s.membersActiveTotal : s.membersTotal;
+        return { societe: s, active, agencies, membersCount };
+      })
+      .filter((r) => !activeOnly || r.active);
   }, [societes, activeOnly]);
+
+  const colSpan = canWrite ? 8 : 7;
 
   return (
     <div className="space-y-3">
@@ -70,10 +68,12 @@ export function SocieteClient({ societes }: SocieteClientProps) {
             <TableHead>Contact</TableHead>
             <TableHead>Agences rattachées</TableHead>
             <TableHead>Membres</TableHead>
+            <TableHead>Statut</TableHead>
+            {canWrite ? <TableHead className="text-center">Actions</TableHead> : null}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map(({ societe: s, agencies, membersCount }) => (
+          {rows.map(({ societe: s, active, agencies, membersCount }) => (
             <TableRow key={s.key}>
               <TableCell className="font-bold">{s.legalName}</TableCell>
               <TableCell className="text-text-soft">{s.legalForm ?? "—"}</TableCell>
@@ -100,11 +100,27 @@ export function SocieteClient({ societes }: SocieteClientProps) {
               <TableCell>
                 <Badge variant="neutral">{membersCount}</Badge>
               </TableCell>
+              <TableCell>
+                <Badge variant={active ? "success" : "danger"}>
+                  {active ? "ACTIVE" : "INACTIVE"}
+                </Badge>
+              </TableCell>
+              {canWrite ? (
+                <TableCell className="text-center">
+                  <ActiveToggleButton
+                    agencyIds={s.agencies.map((a) => a.id)}
+                    active={active}
+                    scopeLabel={`la société « ${s.legalName} »`}
+                    memberCount={s.membersTotal}
+                    agencyCount={s.agencies.length}
+                  />
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
           {rows.length === 0 ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={6} className="py-6 text-center text-text-soft">
+              <TableCell colSpan={colSpan} className="py-6 text-center text-text-soft">
                 Aucune société.
               </TableCell>
             </TableRow>

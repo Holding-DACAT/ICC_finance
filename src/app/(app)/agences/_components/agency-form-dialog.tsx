@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -78,11 +78,17 @@ export function AgencyFormDialog({
     defaultValues: toFormValues(agency),
   });
 
-  const handleOpenChange = (next: boolean) => {
-    if (next) {
+  // L'ouverture est pilotée par le parent (clic « Éditer ») : Radix n'appelle pas
+  // onOpenChange lors d'un changement programmatique de `open`, donc on réinitialise
+  // le formulaire via un effet observant `open`/`agency`.
+  useEffect(() => {
+    if (open) {
       reset(toFormValues(agency));
       setServerError(null);
     }
+  }, [open, agency, reset]);
+
+  const handleOpenChange = (next: boolean) => {
     onOpenChange(next);
   };
 

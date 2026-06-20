@@ -14,6 +14,7 @@ export default async function SocietePage() {
   if (!session?.user) redirect("/login");
 
   const { societes, kpis, available } = await getSocietesData(session.user);
+  const canWrite = session.user.role === "ADMIN" || session.user.role === "RH";
 
   return (
     <div className="space-y-5">
@@ -32,7 +33,7 @@ export default async function SocietePage() {
 
       <Section title="Sociétés du réseau" icon={Landmark}>
         {available ? (
-          <SocieteClient societes={societes} />
+          <SocieteClient societes={societes} canWrite={canWrite} />
         ) : (
           <p className="text-sm font-semibold text-state-warning">
             Base de données non connectée : lancez la migration puis le seed (voir README).

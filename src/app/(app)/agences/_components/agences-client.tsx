@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Folder, Pencil, Plus } from "lucide-react";
 
+import { ActiveToggleButton } from "@/components/active-toggle-button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,16 @@ interface AgencesClientProps {
   agencies: AgencyDTO[];
   memberOptions: MemberOption[];
   canWrite: boolean;
+  /** Id d'agence à ouvrir automatiquement (deep-link depuis la recherche). */
+  initialFocusId?: string;
 }
 
-export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClientProps) {
+export function AgencesClient({
+  agencies,
+  memberOptions,
+  canWrite,
+  initialFocusId,
+}: AgencesClientProps) {
   const [typeFilter, setTypeFilter] = useState("Tous");
   // Par défaut, à l'ouverture de la vue, on n'affiche que les agences actives.
   const [statusFilter, setStatusFilter] = useState("ACTIF");
@@ -33,6 +41,16 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
   const [detailOpen, setDetailOpen] = useState(false);
   const [formAgency, setFormAgency] = useState<AgencyDTO | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Ouvre automatiquement la fiche ciblée par la recherche globale (?focus=…).
+  useEffect(() => {
+    if (!initialFocusId) return;
+    const a = agencies.find((x) => x.id === initialFocusId);
+    if (a) {
+      setDetail(a);
+      setDetailOpen(true);
+    }
+  }, [initialFocusId, agencies]);
 
   const filtered = useMemo(
     () =>
@@ -122,9 +140,18 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
         cell: ({ row }) => (
           <div className="flex items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             {canWrite ? (
-              <IconAction title="Éditer" onClick={() => openEdit(row.original)}>
-                <Pencil className="size-4" />
-              </IconAction>
+              <>
+                <IconAction title="Éditer" onClick={() => openEdit(row.original)}>
+                  <Pencil className="size-4" />
+                </IconAction>
+                <ActiveToggleButton
+                  iconOnly
+                  agencyIds={[row.original.id]}
+                  active={row.original.status === "ACTIF"}
+                  scopeLabel={`l'agence « ${row.original.name} »`}
+                  memberCount={row.original.members.length}
+                />
+              </>
             ) : null}
             <IconAction title="SharePoint" onClick={() => {}}>
               <Folder className="size-4" />

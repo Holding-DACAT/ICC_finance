@@ -1,5 +1,6 @@
 import { Bell, Building2, ClipboardList, Cog, Monitor, Search, Users } from "lucide-react";
 
+import { GlobalSearch } from "@/components/global-search";
 import { KpiCard } from "@/components/kpi-card";
 import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
@@ -11,14 +12,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { auth } from "@/auth";
 import { formatDate } from "@/lib/format";
 import { getDashboardData } from "@/lib/dashboard";
+import { getSearchIndex } from "@/lib/search";
 import { RecruitmentChart } from "./_components/recruitment-chart";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const d = await getDashboardData();
+  const session = await auth();
+  const [d, searchItems] = await Promise.all([
+    getDashboardData(),
+    session?.user ? getSearchIndex(session.user) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -27,12 +34,14 @@ export default async function DashboardPage() {
         <p className="text-sm text-text-soft">Vue d&apos;ensemble du réseau ICC Finance.</p>
       </div>
 
+      <GlobalSearch items={searchItems} />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           icon={Users}
           iconClassName="bg-kpi-orange"
           label="Membres du réseau"
-          value={`${d.membersTotal} membres`}
+          value={`${d.membersActive} membres`}
           sub="Ressources humaines"
         />
         <KpiCard

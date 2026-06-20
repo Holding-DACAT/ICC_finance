@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Folder, Lock, Pencil, Plus } from "lucide-react";
 
@@ -28,9 +28,35 @@ interface EmployesClientProps {
   agencies: AgencyOption[];
   canCreate: boolean;
   canEdit: boolean;
+  /** Id de membre à ouvrir automatiquement (deep-link depuis la recherche). */
+  initialFocusId?: string;
 }
 
-export function EmployesClient({ members, agencies, canCreate, canEdit }: EmployesClientProps) {
+/** Clé du statut « En cours d'intégration » (dérivé de l'onboarding, non stocké). */
+const EN_COURS_INTEGRATION = "EN_COURS_INTEGRATION";
+
+/**
+ * Statut effectif affiché pour un membre — identique à la logique du badge
+ * (cf. MemberStatusBadge) afin que le filtre Statut reste cohérent avec ce
+ * qui est montré dans le tableau.
+ */
+function memberDisplayStatus(m: MemberDTO): string {
+  if (m.onboardingStatus && m.onboardingStatus !== "TERMINE") return EN_COURS_INTEGRATION;
+  return m.status;
+}
+
+const STATUS_FILTER_LABELS: Record<string, string> = {
+  [EN_COURS_INTEGRATION]: "En cours d'intégration",
+  ...MEMBER_STATUS_LABELS,
+};
+
+export function EmployesClient({
+  members,
+  agencies,
+  canCreate,
+  canEdit,
+  initialFocusId,
+}: EmployesClientProps) {
   // Par défaut, à l'ouverture de la vue, on n'affiche que les membres actifs.
   const [statusFilter, setStatusFilter] = useState("ACTIF");
   const [contractFilter, setContractFilter] = useState("Tous");
@@ -45,7 +71,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
     () =>
       members.filter(
         (m) =>
-          (statusFilter === "Tous" || m.status === statusFilter) &&
+          (statusFilter === "Tous" || memberDisplayStatus(m) === statusFilter) &&
           (contractFilter === "Tous" || m.contractType === contractFilter) &&
           (agencyFilter === "Tous" || m.agencyId === agencyFilter),
       ),
@@ -64,6 +90,16 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
     setDetailMember(m);
     setDetailOpen(true);
   };
+
+  // Ouvre automatiquement la fiche ciblée par la recherche globale (?focus=…).
+  useEffect(() => {
+    if (!initialFocusId) return;
+    const m = members.find((x) => x.id === initialFocusId);
+    if (m) {
+      setDetailMember(m);
+      setDetailOpen(true);
+    }
+  }, [initialFocusId, members]);
 
   const columns = useMemo<ColumnDef<MemberDTO>[]>(
     () => [
@@ -95,7 +131,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
       {
         id: "statut",
         header: "Statut",
-        accessorFn: (m) => m.status,
+        accessorFn: (m) => STATUS_FILTER_LABELS[memberDisplayStatus(m)] ?? m.status,
         cell: ({ row }) => (
           <MemberStatusBadge
             status={row.original.status}
@@ -201,6 +237,7 @@ export function EmployesClient({ members, agencies, canCreate, canEdit }: Employ
                 onChange={setStatusFilter}
                 options={[
                   ["Tous", "Tous statuts"],
+                  [EN_COURS_INTEGRATION, STATUS_FILTER_LABELS[EN_COURS_INTEGRATION]],
                   ...memberStatuses.map((s) => [s, MEMBER_STATUS_LABELS[s]] as [string, string]),
                 ]}
               />

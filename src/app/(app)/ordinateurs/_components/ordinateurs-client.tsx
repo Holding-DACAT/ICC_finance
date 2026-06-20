@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Plus } from "lucide-react";
 
@@ -26,6 +26,8 @@ interface OrdinateursClientProps {
   memberOptions: MemberOption[];
   agencyOptions: AgencyOption[];
   canWrite: boolean;
+  /** Id de poste à ouvrir automatiquement (deep-link depuis la recherche). */
+  initialFocusId?: string;
 }
 
 export function OrdinateursClient({
@@ -33,12 +35,23 @@ export function OrdinateursClient({
   memberOptions,
   agencyOptions,
   canWrite,
+  initialFocusId,
 }: OrdinateursClientProps) {
   const [stateFilter, setStateFilter] = useState("Tous");
   const [agencyFilter, setAgencyFilter] = useState("Tous");
   const [assignFilter, setAssignFilter] = useState("Tous");
   const [formComputer, setFormComputer] = useState<ComputerDTO | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Ouvre automatiquement la fiche ciblée par la recherche globale (?focus=…).
+  useEffect(() => {
+    if (!initialFocusId || !canWrite) return;
+    const c = computers.find((x) => x.id === initialFocusId);
+    if (c) {
+      setFormComputer(c);
+      setFormOpen(true);
+    }
+  }, [initialFocusId, canWrite, computers]);
 
   const agencyNameById = useMemo(
     () => new Map(agencyOptions.map((a) => [a.id, a.name])),

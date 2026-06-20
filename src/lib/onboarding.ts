@@ -28,8 +28,6 @@ export interface OnboardingBoard {
   /** Libellés des colonnes : étapes + colonne finale dérivée. */
   columns: string[];
   cards: OnboardingCard[];
-  /** Agences disponibles pour la création d'un nouveau collaborateur. */
-  agencies: { id: string; name: string }[];
 }
 
 /**
@@ -85,30 +83,24 @@ export function deriveProgress(steps: { status: string }[]): {
 export async function getOnboardingBoard(): Promise<OnboardingBoard> {
   try {
     const stages = await getOnboardingStages();
-    const [processes, agencies] = await Promise.all([
-      prisma.onboardingProcess.findMany({
-        include: {
-          member: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              status: true,
-              functionTitle: true,
-              arrivalDate: true,
-              agency: { select: { name: true } },
-            },
+    const processes = await prisma.onboardingProcess.findMany({
+      include: {
+        member: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            status: true,
+            functionTitle: true,
+            arrivalDate: true,
+            agency: { select: { name: true } },
           },
-          assignedTo: { select: { name: true, email: true } },
-          steps: { orderBy: { order: "asc" }, select: { status: true } },
         },
-        orderBy: { updatedAt: "desc" },
-      }),
-      prisma.agency.findMany({
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
-    ]);
+        assignedTo: { select: { name: true, email: true } },
+        steps: { orderBy: { order: "asc" }, select: { status: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
 
     const cards: OnboardingCard[] = processes.map((p) => ({
       id: p.id,
@@ -130,7 +122,6 @@ export async function getOnboardingBoard(): Promise<OnboardingBoard> {
       stages,
       columns: buildColumns(stages),
       cards,
-      agencies,
     };
   } catch {
     const fallback = [...ONBOARDING_STAGES];
@@ -139,7 +130,6 @@ export async function getOnboardingBoard(): Promise<OnboardingBoard> {
       stages: fallback,
       columns: buildColumns(fallback),
       cards: [],
-      agencies: [],
     };
   }
 }

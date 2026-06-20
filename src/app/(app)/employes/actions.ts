@@ -59,15 +59,18 @@ function hasOriasInput(v: MemberFormValues): boolean {
       v.rcProExpiry ||
       v.guaranteeAmount ||
       v.guaranteeExpiry ||
-      v.assocLogin,
+      v.assocLogin ||
+      v.oriasPassword ||
+      v.assocPassword,
   );
 }
 
-/** Données d'inscription ORIAS à upserter (les mots de passe ne sont jamais touchés ici). */
+/** Données d'inscription ORIAS à upserter (identifiants et mots de passe inclus). */
 function normalizeOrias(v: MemberFormValues) {
   return {
     oriasNumber: v.oriasNumber || null,
     oriasLogin: v.oriasLogin || null,
+    oriasPassword: v.oriasPassword || null,
     categories: v.oriasCategories ?? [],
     renewalDate: v.oriasRenewalDate ? new Date(v.oriasRenewalDate) : null,
     status: v.complianceStatus ?? "A_JOUR",
@@ -77,6 +80,7 @@ function normalizeOrias(v: MemberFormValues) {
     guaranteeAmount: v.guaranteeAmount ? Number.parseInt(v.guaranteeAmount, 10) : null,
     guaranteeExpiry: v.guaranteeExpiry ? new Date(v.guaranteeExpiry) : null,
     assocLogin: v.assocLogin || null,
+    assocPassword: v.assocPassword || null,
   };
 }
 

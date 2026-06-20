@@ -9,10 +9,15 @@ import { getOrdinateursData } from "./data";
 
 export const dynamic = "force-dynamic";
 
-export default async function OrdinateursPage() {
+export default async function OrdinateursPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ focus?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const { focus } = await searchParams;
   const { computers, memberOptions, agencyOptions, kpis, available } = await getOrdinateursData(
     session.user,
   );
@@ -38,6 +43,7 @@ export default async function OrdinateursPage() {
           memberOptions={memberOptions}
           agencyOptions={agencyOptions}
           canWrite={canWrite}
+          initialFocusId={focus}
         />
       ) : (
         <Section title="Ordinateurs" icon={Monitor}>

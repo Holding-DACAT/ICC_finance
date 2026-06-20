@@ -162,3 +162,62 @@ export async function bulkUpdateAgencies(
     return { ok: false, error: "Échec de la modification groupée." };
   }
 }
+
+/**
+ * Active/désactive une ou plusieurs agences avec répercussion sur les équipes.
+ *
+ * - Désactivation : les agences passent INACTIF et **tous** leurs membres aussi.
+ * - Activation : les agences repassent ACTIF et seuls les membres précédemment
+ *   inactifs et non partis (sans `departureDate`) sont réactivés, afin de ne pas
+ *   « ressusciter » d'anciens collaborateurs.
+ *
+ * Utilisé par le bouton actif/inactif des agences ET des sociétés (qui transmet
+ * la liste des agences de l'entité juridique).
+ */
+export async function setAgenciesActive(
+  agencyIds: string[],
+  active: boolean,
+): Promise<ActionResult & { agencies?: number; members?: number }> {
+  const auth0 = await canWrite();
+  if (!auth0.ok) return { ok: false, error: auth0.error };
+  if (!Array.isArray(agencyIds) || agencyIds.length === 0) {
+    return { ok: false, error: "Aucune agence ciblée." };
+  }
+
+  const status = active ? "ACTIF" : "INACTIF";
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const agencies = await tx.agency.updateMany({
+        where: { id: { in: agencyIds } },
+        data: { status },
+      });
+      const members = active
+        ? await tx.member.updateMany({
+            where: { agencyId: { in: agencyIds }, status: "INACTIF", departureDate: null },
+            data: { status: "ACTIF" },
+          })
+        : await tx.member.updateMany({
+            where: { agencyId: { in: agencyIds } },
+            data: { status: "INACTIF" },
+          });
+      return { agencies: agencies.count, members: members.count };
+    });
+
+    await writeAudit({
+      userId: auth0.userId,
+      action: "UPDATE",
+      entity: "Agency",
+      diff: {
+        statusCascade: { status, agencyIds, agencies: result.agencies, members: result.members },
+      } as unknown as Prisma.InputJsonValue,
+    });
+
+    revalidatePath("/agences");
+    revalidatePath("/societe");
+    revalidatePath("/employes");
+    revalidatePath("/");
+    return { ok: true, agencies: result.agencies, members: result.members };
+  } catch {
+    return { ok: false, error: "Échec du changement de statut." };
+  }
+}

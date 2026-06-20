@@ -73,6 +73,7 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     departureDate: member?.departureDate ? member.departureDate.slice(0, 10) : "",
     oriasNumber: member?.orias?.oriasNumber ?? "",
     oriasLogin: member?.orias?.oriasLogin ?? "",
+    oriasPassword: member?.orias?.oriasPassword ?? "",
     oriasCategories: (member?.orias?.categories ?? []) as OriasCategory[],
     oriasRenewalDate: member?.orias?.renewalDate ? member.orias.renewalDate.slice(0, 10) : "",
     complianceStatus: member?.orias?.status ?? "A_JOUR",
@@ -82,6 +83,7 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     guaranteeAmount: member?.orias?.guaranteeAmount != null ? String(member.orias.guaranteeAmount) : "",
     guaranteeExpiry: member?.orias?.guaranteeExpiry ? member.orias.guaranteeExpiry.slice(0, 10) : "",
     assocLogin: member?.orias?.assocLogin ?? "",
+    assocPassword: member?.orias?.assocPassword ?? "",
   };
 }
 
@@ -102,9 +104,10 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
   });
 
   // Réinitialise le formulaire à chaque ouverture (création ou édition).
-  // L'ouverture étant contrôlée par le parent, on s'appuie sur un effet
-  // plutôt que sur le seul callback `onOpenChange` du Dialog (qui n'est
-  // déclenché que par les interactions internes de Radix, pas par le prop).
+  // Indispensable car l'ouverture est pilotée par le parent (clic « Éditer »
+  // ou « Démarrer un onboarding ») : Radix n'appelle pas onOpenChange lors d'un
+  // changement programmatique de `open`, donc le reset doit s'appuyer sur un
+  // effet observant `open`/`member`.
   useEffect(() => {
     if (open) {
       reset(toFormValues(member));
@@ -135,6 +138,9 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Civilité" error={errors.civility?.message}>
+            <Input {...register("civility")} placeholder="M., Mme…" />
+          </Field>
           <Field label="Prénom *" error={errors.firstName?.message}>
             <Input {...register("firstName")} />
           </Field>
@@ -264,6 +270,9 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
           <Field label="Identifiant ORIAS" error={errors.oriasLogin?.message}>
             <Input {...register("oriasLogin")} />
           </Field>
+          <Field label="Mot de passe ORIAS" error={errors.oriasPassword?.message}>
+            <Input {...register("oriasPassword")} autoComplete="off" />
+          </Field>
           <Field label="Date de renouvellement" error={errors.oriasRenewalDate?.message}>
             <Input type="date" {...register("oriasRenewalDate")} />
           </Field>
@@ -346,6 +355,9 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
           <SectionHeading>Associations professionnelles</SectionHeading>
           <Field label="Identifiant" error={errors.assocLogin?.message}>
             <Input {...register("assocLogin")} />
+          </Field>
+          <Field label="Mot de passe" error={errors.assocPassword?.message}>
+            <Input {...register("assocPassword")} autoComplete="off" />
           </Field>
 
           {serverError ? (
