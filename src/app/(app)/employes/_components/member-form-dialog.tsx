@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -104,13 +104,15 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
   });
 
   // Réinitialise le formulaire à chaque ouverture (création ou édition).
-  const handleOpenChange = (next: boolean) => {
-    if (next) {
+  // Indispensable car l'ouverture est pilotée par le parent (clic « Éditer ») :
+  // Radix n'appelle pas onOpenChange lors d'un changement programmatique de `open`,
+  // donc le reset doit s'appuyer sur un effet observant `open`/`member`.
+  useEffect(() => {
+    if (open) {
       reset(toFormValues(member));
       setServerError(null);
     }
-    onOpenChange(next);
-  };
+  }, [open, member, reset]);
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -125,7 +127,7 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
   });
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier le membre" : "Créer un membre"}</DialogTitle>

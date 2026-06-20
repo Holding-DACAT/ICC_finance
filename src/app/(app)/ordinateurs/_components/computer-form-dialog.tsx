@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -71,11 +71,17 @@ export function ComputerFormDialog({
     defaultValues: toFormValues(computer),
   });
 
-  const handleOpenChange = (next: boolean) => {
-    if (next) {
+  // L'ouverture est pilotée par le parent (clic « Éditer ») : Radix n'appelle pas
+  // onOpenChange lors d'un changement programmatique de `open`, donc on réinitialise
+  // le formulaire via un effet observant `open`/`computer`.
+  useEffect(() => {
+    if (open) {
       reset(toFormValues(computer));
       setServerError(null);
     }
+  }, [open, computer, reset]);
+
+  const handleOpenChange = (next: boolean) => {
     onOpenChange(next);
   };
 
