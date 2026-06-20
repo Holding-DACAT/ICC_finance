@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type ColumnDef,
+  type PaginationState,
   type RowSelectionState,
   type SortingState,
   flexRender,
@@ -96,7 +97,7 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   // Colonne de sélection ajoutée en tête lorsque la sélection est active.
@@ -128,11 +129,12 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns: tableColumns,
-    state: { sorting, globalFilter, rowSelection, pagination: { pageIndex: 0, pageSize } },
+    state: { sorting, globalFilter, rowSelection, pagination },
     enableRowSelection: enableSelection,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -149,10 +151,9 @@ export function DataTable<TData, TValue>({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 text-[12.5px] text-text-soft">
           <Select
-            value={pageSize >= ALL ? "Tout" : String(pageSize)}
+            value={pagination.pageSize >= ALL ? "Tout" : String(pagination.pageSize)}
             onValueChange={(v) => {
-              setPageSize(v === "Tout" ? ALL : Number(v));
-              table.setPageIndex(0);
+              setPagination({ pageIndex: 0, pageSize: v === "Tout" ? ALL : Number(v) });
             }}
           >
             <SelectTrigger className="h-9 w-[88px]">

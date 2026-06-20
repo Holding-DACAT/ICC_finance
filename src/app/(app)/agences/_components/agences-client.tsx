@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Folder, Pencil, Plus } from "lucide-react";
 
+import { ActiveToggleButton } from "@/components/active-toggle-button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,9 +116,18 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
         cell: ({ row }) => (
           <div className="flex items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             {canWrite ? (
-              <IconAction title="Éditer" onClick={() => openEdit(row.original)}>
-                <Pencil className="size-4" />
-              </IconAction>
+              <>
+                <IconAction title="Éditer" onClick={() => openEdit(row.original)}>
+                  <Pencil className="size-4" />
+                </IconAction>
+                <ActiveToggleButton
+                  iconOnly
+                  agencyIds={[row.original.id]}
+                  active={row.original.status === "ACTIF"}
+                  scopeLabel={`l'agence « ${row.original.name} »`}
+                  memberCount={row.original.members.length}
+                />
+              </>
             ) : null}
             <IconAction title="SharePoint" onClick={() => {}}>
               <Folder className="size-4" />

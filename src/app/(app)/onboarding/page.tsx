@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { Section } from "@/components/section";
 import { auth } from "@/auth";
+import { getEmployesData } from "@/app/(app)/employes/data";
 import { getOnboardingBoard } from "@/lib/onboarding";
 import { OnboardingBoard } from "./_components/onboarding-board";
 
@@ -12,8 +13,13 @@ export default async function OnboardingPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const board = await getOnboardingBoard();
-  const canWrite = session.user.role === "ADMIN" || session.user.role === "RH";
+  const [board, employes] = await Promise.all([
+    getOnboardingBoard(),
+    getEmployesData(session.user),
+  ]);
+  const role = session.user.role;
+  const canWrite = role === "ADMIN" || role === "RH";
+  const canEditMembers = canWrite || role === "DIRECTEUR_AGENCE";
 
   return (
     <div className="space-y-5">
@@ -31,6 +37,9 @@ export default async function OnboardingPage() {
           cards={board.cards}
           eligibleMembers={board.eligibleMembers}
           canWrite={canWrite}
+          members={employes.members}
+          agencies={employes.agencies}
+          canEditMembers={canEditMembers}
         />
       ) : (
         <Section title="Onboarding" icon={KanbanSquare} accent="green">

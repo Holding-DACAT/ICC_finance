@@ -32,7 +32,7 @@ export default async function DashboardPage() {
           icon={Users}
           iconClassName="bg-kpi-orange"
           label="Membres du réseau"
-          value={`${d.membersTotal} membres`}
+          value={`${d.membersActive} membres`}
           sub="Ressources humaines"
         />
         <KpiCard
