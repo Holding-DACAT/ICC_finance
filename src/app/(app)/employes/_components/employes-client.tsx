@@ -31,7 +31,8 @@ interface EmployesClientProps {
 }
 
 export function EmployesClient({ members, agencies, canCreate, canEdit }: EmployesClientProps) {
-  const [statusFilter, setStatusFilter] = useState("Tous");
+  // Par défaut, à l'ouverture de la vue, on n'affiche que les membres actifs.
+  const [statusFilter, setStatusFilter] = useState("ACTIF");
   const [contractFilter, setContractFilter] = useState("Tous");
   const [agencyFilter, setAgencyFilter] = useState("Tous");
 

@@ -28,11 +28,9 @@ export interface OnboardingBoard {
   /** Libellés des colonnes : étapes + colonne finale dérivée. */
   columns: string[];
   cards: OnboardingCard[];
-  /** Membres actifs sans onboarding (candidats au démarrage d'un parcours). */
-  eligibleMembers: { id: string; name: string }[];
+  /** Agences disponibles pour la création d'un nouveau collaborateur. */
+  agencies: { id: string; name: string }[];
 }
-
-const fullName = (m: { firstName: string; lastName: string }) => `${m.lastName} ${m.firstName}`;
 
 /**
  * Liste éditable des étapes du kanban, lue depuis le paramètre
@@ -87,7 +85,7 @@ export function deriveProgress(steps: { status: string }[]): {
 export async function getOnboardingBoard(): Promise<OnboardingBoard> {
   try {
     const stages = await getOnboardingStages();
-    const [processes, membersWithout] = await Promise.all([
+    const [processes, agencies] = await Promise.all([
       prisma.onboardingProcess.findMany({
         include: {
           member: {
@@ -106,10 +104,9 @@ export async function getOnboardingBoard(): Promise<OnboardingBoard> {
         },
         orderBy: { updatedAt: "desc" },
       }),
-      prisma.member.findMany({
-        where: { status: "ACTIF", onboarding: { is: null } },
-        select: { id: true, firstName: true, lastName: true },
-        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      prisma.agency.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
       }),
     ]);
 
@@ -133,7 +130,7 @@ export async function getOnboardingBoard(): Promise<OnboardingBoard> {
       stages,
       columns: buildColumns(stages),
       cards,
-      eligibleMembers: membersWithout.map((m) => ({ id: m.id, name: fullName(m) })),
+      agencies,
     };
   } catch {
     const fallback = [...ONBOARDING_STAGES];
@@ -142,7 +139,7 @@ export async function getOnboardingBoard(): Promise<OnboardingBoard> {
       stages: fallback,
       columns: buildColumns(fallback),
       cards: [],
-      eligibleMembers: [],
+      agencies: [],
     };
   }
 }

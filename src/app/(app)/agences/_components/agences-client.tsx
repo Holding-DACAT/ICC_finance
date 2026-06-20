@@ -27,14 +27,21 @@ interface AgencesClientProps {
 
 export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClientProps) {
   const [typeFilter, setTypeFilter] = useState("Tous");
+  // Par défaut, à l'ouverture de la vue, on n'affiche que les agences actives.
+  const [statusFilter, setStatusFilter] = useState("ACTIF");
   const [detail, setDetail] = useState<AgencyDTO | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [formAgency, setFormAgency] = useState<AgencyDTO | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const filtered = useMemo(
-    () => agencies.filter((a) => typeFilter === "Tous" || a.type === typeFilter),
-    [agencies, typeFilter],
+    () =>
+      agencies.filter(
+        (a) =>
+          (typeFilter === "Tous" || a.type === typeFilter) &&
+          (statusFilter === "Tous" || a.status === statusFilter),
+      ),
+    [agencies, typeFilter, statusFilter],
   );
 
   const openEdit = (a: AgencyDTO) => {
@@ -159,16 +166,28 @@ export function AgencesClient({ agencies, memberOptions, canWrite }: AgencesClie
               : undefined
           }
           toolbarExtra={
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="h-9 w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Tous">Tous types</SelectItem>
-                <SelectItem value="FRANCHISE">Franchise</SelectItem>
-                <SelectItem value="FILIALE">Filiale</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-9 w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tous">Tous statuts</SelectItem>
+                  <SelectItem value="ACTIF">Actives</SelectItem>
+                  <SelectItem value="INACTIF">Inactives</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="h-9 w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tous">Tous types</SelectItem>
+                  <SelectItem value="FRANCHISE">Franchise</SelectItem>
+                  <SelectItem value="FILIALE">Filiale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           }
         />
       </div>
