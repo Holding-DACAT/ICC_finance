@@ -104,9 +104,10 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
   });
 
   // Réinitialise le formulaire à chaque ouverture (création ou édition).
-  // Indispensable car l'ouverture est pilotée par le parent (clic « Éditer ») :
-  // Radix n'appelle pas onOpenChange lors d'un changement programmatique de `open`,
-  // donc le reset doit s'appuyer sur un effet observant `open`/`member`.
+  // Indispensable car l'ouverture est pilotée par le parent (clic « Éditer »
+  // ou « Démarrer un onboarding ») : Radix n'appelle pas onOpenChange lors d'un
+  // changement programmatique de `open`, donc le reset doit s'appuyer sur un
+  // effet observant `open`/`member`.
   useEffect(() => {
     if (open) {
       reset(toFormValues(member));

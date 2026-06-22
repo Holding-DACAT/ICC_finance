@@ -12,7 +12,10 @@ export interface SocieteAgency {
   name: string;
   type: "FRANCHISE" | "FILIALE";
   status: "ACTIF" | "INACTIF";
+  /** Nombre total de membres rattachés (tous statuts). */
   membersCount: number;
+  /** Nombre de membres actifs. */
+  membersActiveCount: number;
 }
 
 export interface SocieteDTO {
@@ -25,6 +28,7 @@ export interface SocieteDTO {
   email: string | null;
   agencies: SocieteAgency[];
   membersTotal: number;
+  membersActiveTotal: number;
 }
 
 export interface SocieteData {
@@ -57,7 +61,7 @@ export async function getSocietesData(user: SessionUser): Promise<SocieteData> {
         siren: true,
         phone: true,
         email: true,
-        _count: { select: { members: true } },
+        members: { select: { status: true } },
       },
     });
 
@@ -66,17 +70,21 @@ export async function getSocietesData(user: SessionUser): Promise<SocieteData> {
       const legalName = a.legalName ?? a.name;
       const key = legalName.toLowerCase();
       const existing = byKey.get(key);
+      const membersCount = a.members.length;
+      const membersActiveCount = a.members.filter((m) => m.status === "ACTIF").length;
       const agency: SocieteAgency = {
         id: a.id,
         name: a.name,
         type: a.type,
         // Une agence n'a que ACTIF/INACTIF (statut « en cours » réservé aux membres).
         status: a.status === "INACTIF" ? "INACTIF" : "ACTIF",
-        membersCount: a._count.members,
+        membersCount,
+        membersActiveCount,
       };
       if (existing) {
         existing.agencies.push(agency);
-        existing.membersTotal += a._count.members;
+        existing.membersTotal += membersCount;
+        existing.membersActiveTotal += membersActiveCount;
         existing.legalForm ??= a.legalForm;
         existing.siren ??= a.siren;
         existing.phone ??= a.phone;
@@ -90,7 +98,8 @@ export async function getSocietesData(user: SessionUser): Promise<SocieteData> {
           phone: a.phone,
           email: a.email,
           agencies: [agency],
-          membersTotal: a._count.members,
+          membersTotal: membersCount,
+          membersActiveTotal: membersActiveCount,
         });
       }
     }
