@@ -23,7 +23,7 @@ interface MemberDetailSheetProps {
 export function MemberDetailSheet({ member, open, onOpenChange, onEdit }: MemberDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="w-full max-w-none sm:w-[75vw] sm:max-w-[1200px]">
         {member ? (
           <>
             <SheetHeader>
@@ -76,7 +76,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onEdit }: Member
 
               {/* --- RH --- */}
               <TabsContent value="rh">
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-4">
                   <Info label="Nom" value={member.lastName} />
                   <Info label="Prénom" value={member.firstName} />
                   <Info label="Adresse mail" value={member.email} />
@@ -104,7 +104,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onEdit }: Member
               {/* --- Habilitation --- */}
               <TabsContent value="orias">
                 {member.orias ? (
-                  <div className="space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-2">
                     {/* ORIAS */}
                     <HabilitationSection title="ORIAS">
                       <Row label="N° ORIAS" value={member.orias.oriasNumber ?? "—"} />
