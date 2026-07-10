@@ -10,12 +10,11 @@
  * réalisées) et n'est donc pas listée ici.
  */
 export const ONBOARDING_STAGES = [
-  "Dossier administratif",
-  "Contrat signé",
-  "Compte AD & messagerie",
-  "Matériel & accès IT",
+  "Nouvel entrant",
+  "Formations",
+  "Accès ICC & Informatique",
   "Immatriculation ORIAS",
-  "Formation initiale",
+  "Booking",
 ] as const;
 
 /** Libellé de la colonne finale (étapes toutes réalisées). */

@@ -18,7 +18,9 @@ export default async function AgencesPage({
   if (!session?.user) redirect("/login");
 
   const { focus } = await searchParams;
-  const { agencies, memberOptions, kpis, available } = await getAgencesData(session.user);
+  const { agencies, memberOptions, companyOptions, kpis, available } = await getAgencesData(
+    session.user,
+  );
   const canWrite = session.user.role === "ADMIN" || session.user.role === "RH";
 
   return (
@@ -39,6 +41,7 @@ export default async function AgencesPage({
         <AgencesClient
           agencies={agencies}
           memberOptions={memberOptions}
+          companyOptions={companyOptions}
           canWrite={canWrite}
           initialFocusId={focus}
         />

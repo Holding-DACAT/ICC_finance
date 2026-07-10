@@ -86,12 +86,53 @@ enum AuditAction {
   VIEW
 }
 
+// ------------------------------- Société --------------------------------
+// Entité juridique (raison sociale) du réseau. Une société regroupe une ou
+// plusieurs agences et porte les informations juridiques et d'assurance
+// (forme juridique, SIREN, ORIAS, RC Pro, garantie financière).
+model Company {
+  id              String   @id @default(cuid())
+  name            String   @unique // raison sociale
+  legalForm       String?          // SAS, SARL...
+  siren           String?
+  oriasNumber     String?
+  address         String?
+  phone           String?
+  email           String?
+  rcProInsurer    String?
+  rcProPolicy     String?
+  rcProExpiry     DateTime?
+  guaranteeAmount Int?
+  guaranteeExpiry DateTime?
+  sharePointUrl   String?
+  status          MemberStatus @default(ACTIF)
+  agencies        Agency[]
+  members         Member[]
+  directors       CompanyDirector[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Directeur(s)/gérant(s) d'une société (association N-N avec les membres).
+model CompanyDirector {
+  id        String  @id @default(cuid())
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  member    Member  @relation("DirectedCompanies", fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  @@unique([companyId, memberId])
+}
+
 // ------------------------------- Agence ---------------------------------
 model Agency {
   id                String   @id @default(cuid())
   name              String   @unique
   type              AgencyType
   status            MemberStatus @default(ACTIF)
+  // Société de rattachement (raison sociale). Les champs juridiques ci-dessous
+  // sont une copie dénormalisée renseignée automatiquement depuis la société.
+  company           Company? @relation(fields: [companyId], references: [id])
+  companyId         String?
   legalName         String?
   legalForm         String?       // SAS, SARL...
   siren             String?       // SIREN de la société
@@ -109,6 +150,7 @@ model Agency {
   directors         AgencyDirector[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  @@index([companyId])
 }
 
 // Directeur(s) d'agence (un membre peut diriger plusieurs agences ; une agence peut avoir plusieurs directeurs)
@@ -127,16 +169,17 @@ model Member {
   civility      String?
   firstName     String
   lastName      String
-  email         String   @unique
+  email         String   @unique  // e-mail ICC Finance (professionnel)
+  personalEmail String?          // e-mail personnel
   phone         String?
-  photoUrl      String?
+  photoUrl      String?          // photo du collaborateur (URL ou data URL)
   birthDate     DateTime?        // date de naissance
   postalAddress String?          // adresse postale
   siren         String?          // SIREN (mandataire/franchisé)
   legalMentions String?          // mentions légales
   contractType  ContractType
   functionTitle String           // ex. "Mandataire", "Directeur d'agence"
-  functionSub   String?          // ex. "MIOBSP & MIA"
+  functionSub   String?          // poste occupé
   network       NetworkType
   status        MemberStatus @default(ACTIF)
   arrivalDate   DateTime
@@ -146,7 +189,11 @@ model Member {
 
   agency        Agency   @relation(fields: [agencyId], references: [id])
   agencyId      String
+  // Société de rattachement (raison sociale) — dérivée de l'agence par défaut.
+  company       Company? @relation(fields: [companyId], references: [id])
+  companyId     String?
   directedAgencies AgencyDirector[] @relation("DirectedAgencies")
+  directedCompanies CompanyDirector[] @relation("DirectedCompanies")
 
   orias         OriasRegistration?
   trainings     Training[]
@@ -156,6 +203,7 @@ model Member {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   @@index([agencyId])
+  @@index([companyId])
   @@index([status])
 }
 
@@ -193,8 +241,13 @@ model OriasRegistration {
   rcProInsurer     String?          // Assurances — nom assureur
   rcProPolicy      String?          // Assurances — n° police / contrat
   rcProExpiry      DateTime?
-  assocLogin       String?          // Associations professionnelles — identifiant
-  assocPassword    String?          // Associations professionnelles — mot de passe
+  assocLogin       String?          // (hérité) association professionnelle générique
+  assocPassword    String?          // (hérité)
+  // Associations professionnelles distinctes (accès séparés).
+  assocMiobspLogin    String?       // Association MIOBSP — identifiant
+  assocMiobspPassword String?       // Association MIOBSP — mot de passe
+  assocMiaLogin       String?       // Association MIA — identifiant
+  assocMiaPassword    String?       // Association MIA — mot de passe
   guaranteeAmount  Int?
   guaranteeExpiry  DateTime?
   capacityProOk    Boolean  @default(false)

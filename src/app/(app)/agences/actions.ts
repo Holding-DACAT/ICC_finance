@@ -22,25 +22,42 @@ export interface ActionResult {
 
 const WRITE_ROLES = ["ADMIN", "RH"] as const;
 
+/**
+ * Champs propres de l'agence. La forme juridique / SIREN / ORIAS / raison
+ * sociale sont recopiés depuis la société de rattachement (cf. `withCompany`).
+ */
 function normalize(values: AgencyFormValues) {
-  const amount = values.guaranteeAmount ? Number(values.guaranteeAmount) : null;
   return {
     name: values.name,
     type: values.type,
     status: values.status,
-    legalName: values.legalName || null,
-    legalForm: values.legalForm || null,
-    siren: values.siren || null,
+    companyId: values.companyId || null,
     address: values.address || null,
     phone: values.phone || null,
     email: values.email || null,
-    oriasNumber: values.oriasNumber || null,
-    rcProInsurer: values.rcProInsurer || null,
-    rcProExpiry: values.rcProExpiry ? new Date(values.rcProExpiry) : null,
-    guaranteeAmount: amount !== null && !Number.isNaN(amount) ? Math.round(amount) : null,
-    guaranteeExpiry: values.guaranteeExpiry ? new Date(values.guaranteeExpiry) : null,
     sharePointUrl: values.sharePointUrl || null,
     redevanceExcluded: values.redevanceExcluded,
+  };
+}
+
+/**
+ * Complète les données de l'agence avec la copie dénormalisée des informations
+ * juridiques de la société de rattachement (raison sociale, forme, SIREN, ORIAS).
+ */
+async function withCompany(data: ReturnType<typeof normalize>) {
+  if (!data.companyId) {
+    return { ...data, legalName: null, legalForm: null, siren: null, oriasNumber: null };
+  }
+  const company = await prisma.company.findUnique({
+    where: { id: data.companyId },
+    select: { name: true, legalForm: true, siren: true, oriasNumber: true },
+  });
+  return {
+    ...data,
+    legalName: company?.name ?? null,
+    legalForm: company?.legalForm ?? null,
+    siren: company?.siren ?? null,
+    oriasNumber: company?.oriasNumber ?? null,
   };
 }
 
@@ -61,7 +78,7 @@ export async function createAgency(values: AgencyFormValues): Promise<ActionResu
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
-  const data = normalize(parsed.data);
+  const data = await withCompany(normalize(parsed.data));
 
   try {
     const agency = await prisma.agency.create({
@@ -97,7 +114,7 @@ export async function updateAgency(id: string, values: AgencyFormValues): Promis
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
-  const data = normalize(parsed.data);
+  const data = await withCompany(normalize(parsed.data));
 
   try {
     // Remplace l'ensemble des directeurs (association N-N) de façon atomique.

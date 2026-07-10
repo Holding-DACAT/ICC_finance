@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import type { OnboardingCard } from "@/lib/onboarding";
 import { MemberDetailSheet } from "@/app/(app)/employes/_components/member-detail-sheet";
 import { MemberFormDialog } from "@/app/(app)/employes/_components/member-form-dialog";
-import type { AgencyOption, MemberDTO } from "@/app/(app)/employes/types";
+import type { AgencyOption, CompanyOption, MemberDTO } from "@/app/(app)/employes/types";
 import { moveOnboardingCard, saveOnboardingStages } from "../actions";
 
 interface OnboardingBoardProps {
@@ -40,6 +40,7 @@ interface OnboardingBoardProps {
   /** Fiches complètes des membres, pour ouverture/édition depuis une carte. */
   members: MemberDTO[];
   agencies: AgencyOption[];
+  companies: CompanyOption[];
   canEditMembers: boolean;
 }
 
@@ -50,6 +51,7 @@ export function OnboardingBoard({
   canWrite,
   members,
   agencies,
+  companies,
   canEditMembers,
 }: OnboardingBoardProps) {
   const router = useRouter();
@@ -252,6 +254,7 @@ export function OnboardingBoard({
       />
       <MemberFormDialog
         agencies={agencies}
+        companies={companies}
         member={formMember}
         open={formOpen}
         onOpenChange={setFormOpen}

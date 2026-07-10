@@ -64,6 +64,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onEdit }: Member
                   first={member.firstName}
                   last={member.lastName}
                   active={member.status === "ACTIF"}
+                  photoUrl={member.photoUrl}
                 />
                 <div>
                   <SheetTitle>
@@ -152,7 +153,8 @@ function RhContent({ member }: { member: MemberDTO }) {
     <div className="grid grid-cols-2 gap-2.5">
       <Info label="Nom" value={member.lastName} />
       <Info label="Prénom" value={member.firstName} />
-      <Info label="Adresse mail" value={member.email} />
+      <Info label="Adresse mail ICC Finance" value={member.email} />
+      <Info label="Adresse mail personnelle" value={member.personalEmail ?? "—"} />
       <Info label="N° téléphone" value={member.phone ?? "—"} />
       <Info label="Adresse postale" value={member.postalAddress ?? "—"} />
       <Info label="Date de naissance" value={formatDate(member.birthDate)} />
@@ -162,12 +164,14 @@ function RhContent({ member }: { member: MemberDTO }) {
         <MemberStatusBadge status={member.status} onboardingStatus={member.onboardingStatus} />
       </Info>
       <Info label="Fonction" value={member.functionTitle} />
+      <Info label="Poste occupé" value={member.functionSub ?? "—"} />
       <Info label="SIREN" value={member.siren ?? "—"} />
       <Info label="Mentions légales" value={member.legalMentions ?? "—"} />
       <Info
-        label="Raison sociale (agence de rattachement)"
-        value={member.agencyLegalName ?? member.agencyName}
+        label="Société de rattachement"
+        value={member.companyName ?? member.agencyLegalName ?? "—"}
       />
+      <Info label="Agence de rattachement" value={member.agencyName} />
     </div>
   );
 }
@@ -183,11 +187,8 @@ function OriasContent({ member }: { member: MemberDTO }) {
         <Row label="Identifiant ORIAS" value={member.orias.oriasLogin ?? "—"} />
         <Row label="Mot de passe ORIAS" value={member.orias.oriasPassword ?? "—"} />
         <div className="flex items-center justify-between rounded-lg bg-card px-3 py-2.5 text-sm">
-          <span className="text-text-soft">Renouvellement</span>
-          <div className="flex items-center gap-2">
-            <span>{formatDate(member.orias.renewalDate)}</span>
-            <ComplianceBadge status={member.orias.status} />
-          </div>
+          <span className="text-text-soft">Conformité</span>
+          <ComplianceBadge status={member.orias.status} />
         </div>
         {member.orias.categories.map((c) => (
           <div
@@ -218,9 +219,15 @@ function OriasContent({ member }: { member: MemberDTO }) {
         <Row label="Échéance" value={formatDate(member.orias.guaranteeExpiry)} />
       </HabilitationSection>
 
-      <HabilitationSection title="Associations professionnelles">
-        <Row label="Identifiant" value={member.orias.assocLogin ?? "—"} />
-        <Row label="Mot de passe" value={member.orias.assocPassword ?? "—"} />
+      {/* Associations professionnelles distinctes (accès séparés). */}
+      <HabilitationSection title="Association professionnelle — MIOBSP">
+        <Row label="Identifiant" value={member.orias.assocMiobspLogin ?? "—"} />
+        <Row label="Mot de passe" value={member.orias.assocMiobspPassword ?? "—"} />
+      </HabilitationSection>
+
+      <HabilitationSection title="Association professionnelle — MIA">
+        <Row label="Identifiant" value={member.orias.assocMiaLogin ?? "—"} />
+        <Row label="Mot de passe" value={member.orias.assocMiaPassword ?? "—"} />
       </HabilitationSection>
     </div>
   );

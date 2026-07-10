@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "lucide-react";
+import { Plus, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,10 +43,11 @@ const COMPLIANCE_LABELS: Record<(typeof complianceStatuses)[number], string> = {
   EXPIRE: "Expiré",
 };
 import { createMember, updateMember } from "../actions";
-import type { AgencyOption, MemberDTO } from "../types";
+import type { AgencyOption, CompanyOption, MemberDTO } from "../types";
 
 interface MemberFormDialogProps {
   agencies: AgencyOption[];
+  companies?: CompanyOption[];
   member?: MemberDTO | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +59,9 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     firstName: member?.firstName ?? "",
     lastName: member?.lastName ?? "",
     email: member?.email ?? "",
+    personalEmail: member?.personalEmail ?? "",
     phone: member?.phone ?? "",
+    photoUrl: member?.photoUrl ?? "",
     birthDate: member?.birthDate ? member.birthDate.slice(0, 10) : "",
     postalAddress: member?.postalAddress ?? "",
     siren: member?.siren ?? "",
@@ -68,6 +71,7 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     functionSub: member?.functionSub ?? "",
     network: member?.network ?? "FILIALE",
     status: member?.status ?? "ACTIF",
+    companyId: member?.companyId ?? "",
     agencyId: member?.agencyId ?? "",
     arrivalDate: member?.arrivalDate ? member.arrivalDate.slice(0, 10) : "",
     departureDate: member?.departureDate ? member.departureDate.slice(0, 10) : "",
@@ -75,21 +79,30 @@ function toFormValues(member: MemberDTO | null | undefined): MemberFormValues {
     oriasLogin: member?.orias?.oriasLogin ?? "",
     oriasPassword: member?.orias?.oriasPassword ?? "",
     oriasCategories: (member?.orias?.categories ?? []) as OriasCategory[],
-    oriasRenewalDate: member?.orias?.renewalDate ? member.orias.renewalDate.slice(0, 10) : "",
     complianceStatus: member?.orias?.status ?? "A_JOUR",
     rcProInsurer: member?.orias?.rcProInsurer ?? "",
     rcProPolicy: member?.orias?.rcProPolicy ?? "",
     rcProExpiry: member?.orias?.rcProExpiry ? member.orias.rcProExpiry.slice(0, 10) : "",
     guaranteeAmount: member?.orias?.guaranteeAmount != null ? String(member.orias.guaranteeAmount) : "",
     guaranteeExpiry: member?.orias?.guaranteeExpiry ? member.orias.guaranteeExpiry.slice(0, 10) : "",
-    assocLogin: member?.orias?.assocLogin ?? "",
-    assocPassword: member?.orias?.assocPassword ?? "",
+    assocMiobspLogin: member?.orias?.assocMiobspLogin ?? "",
+    assocMiobspPassword: member?.orias?.assocMiobspPassword ?? "",
+    assocMiaLogin: member?.orias?.assocMiaLogin ?? "",
+    assocMiaPassword: member?.orias?.assocMiaPassword ?? "",
   };
 }
 
-export function MemberFormDialog({ agencies, member, open, onOpenChange }: MemberFormDialogProps) {
+export function MemberFormDialog({
+  agencies,
+  companies = [],
+  member,
+  open,
+  onOpenChange,
+}: MemberFormDialogProps) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isEdit = Boolean(member);
 
   const {
@@ -97,11 +110,38 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
     handleSubmit,
     control,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<MemberFormValues>({
     resolver: zodResolver(memberFormSchema),
     defaultValues: toFormValues(member),
   });
+
+  const photoUrl = watch("photoUrl");
+  const selectedCompanyId = watch("companyId");
+  const selectedAgencyId = watch("agencyId");
+  const firstName = watch("firstName");
+  const lastName = watch("lastName");
+
+  // Agences proposées : filtrées par la société de rattachement si elle est choisie.
+  const visibleAgencies = selectedCompanyId
+    ? agencies.filter((a) => a.companyId === selectedCompanyId)
+    : agencies;
+
+  async function handlePhotoFile(file: File) {
+    setPhotoError(null);
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Fichier image attendu.");
+      return;
+    }
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 256);
+      setValue("photoUrl", dataUrl, { shouldDirty: true });
+    } catch {
+      setPhotoError("Impossible de charger cette image.");
+    }
+  }
 
   // Réinitialise le formulaire à chaque ouverture (création ou édition).
   // Indispensable car l'ouverture est pilotée par le parent (clic « Éditer »
@@ -138,6 +178,64 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Photo du collaborateur */}
+          <div className="col-span-full flex items-center gap-3">
+            {photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photoUrl}
+                alt="Photo du collaborateur"
+                className="size-16 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="grid size-16 place-items-center rounded-xl bg-brand-card-soft text-sm font-bold text-white">
+                {(firstName?.[0] ?? "").toUpperCase()}
+                {(lastName?.[0] ?? "").toUpperCase()}
+              </div>
+            )}
+            <input type="hidden" {...register("photoUrl")} />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="size-3.5" /> {photoUrl ? "Changer la photo" : "Ajouter une photo"}
+                </Button>
+                {photoUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setValue("photoUrl", "", { shouldDirty: true })}
+                  >
+                    <X className="size-3.5" /> Retirer
+                  </Button>
+                ) : null}
+              </div>
+              {photoError ? (
+                <span className="text-[11px] text-state-danger">{photoError}</span>
+              ) : errors.photoUrl?.message ? (
+                <span className="text-[11px] text-state-danger">{errors.photoUrl.message}</span>
+              ) : (
+                <span className="text-[11px] text-text-faint">JPG/PNG — redimensionnée automatiquement.</span>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handlePhotoFile(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
+
           <Field label="Civilité" error={errors.civility?.message}>
             <Input {...register("civility")} placeholder="M., Mme…" />
           </Field>
@@ -147,8 +245,11 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
           <Field label="Nom *" error={errors.lastName?.message}>
             <Input {...register("lastName")} />
           </Field>
-          <Field label="Email *" error={errors.email?.message}>
-            <Input type="email" {...register("email")} />
+          <Field label="Adresse mail ICC Finance *" error={errors.email?.message}>
+            <Input type="email" {...register("email")} placeholder="prenom.nom@icc-finance.fr" />
+          </Field>
+          <Field label="Adresse mail personnelle" error={errors.personalEmail?.message}>
+            <Input type="email" {...register("personalEmail")} placeholder="prenom.nom@email.com" />
           </Field>
           <Field label="Téléphone" error={errors.phone?.message}>
             <Input {...register("phone")} />
@@ -210,11 +311,43 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
           <Field label="Fonction *" error={errors.functionTitle?.message}>
             <Input {...register("functionTitle")} placeholder="Mandataire, Directeur d'agence…" />
           </Field>
-          <Field label="Précision (catégories ORIAS)" error={errors.functionSub?.message}>
-            <Input {...register("functionSub")} placeholder="MIOBSP & MIA" />
+          <Field label="Poste occupé" error={errors.functionSub?.message}>
+            <Input {...register("functionSub")} placeholder="Ex. Mandataire, Assistante…" />
           </Field>
 
-          <Field label="Agence *" error={errors.agencyId?.message}>
+          <Field label="Société de rattachement" error={errors.companyId?.message}>
+            <Controller
+              control={control}
+              name="companyId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || "__none__"}
+                  onValueChange={(v) => {
+                    const next = v === "__none__" ? "" : v;
+                    field.onChange(next);
+                    // Réinitialise l'agence si elle n'appartient plus à la société.
+                    const current = agencies.find((a) => a.id === selectedAgencyId);
+                    if (next && current && current.companyId !== next) {
+                      setValue("agencyId", "");
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une société" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Déduite de l&apos;agence —</SelectItem>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <Field label="Agence de rattachement *" error={errors.agencyId?.message}>
             <Controller
               control={control}
               name="agencyId"
@@ -224,7 +357,7 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
                     <SelectValue placeholder="Sélectionner une agence" />
                   </SelectTrigger>
                   <SelectContent>
-                    {agencies.map((a) => (
+                    {visibleAgencies.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.name}
                       </SelectItem>
@@ -272,9 +405,6 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
           </Field>
           <Field label="Mot de passe ORIAS" error={errors.oriasPassword?.message}>
             <Input {...register("oriasPassword")} autoComplete="off" />
-          </Field>
-          <Field label="Date de renouvellement" error={errors.oriasRenewalDate?.message}>
-            <Input type="date" {...register("oriasRenewalDate")} />
           </Field>
           <Field label="Conformité" error={errors.complianceStatus?.message}>
             <Controller
@@ -351,13 +481,22 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
             <Input type="date" {...register("guaranteeExpiry")} />
           </Field>
 
-          {/* --- Associations professionnelles --- */}
-          <SectionHeading>Associations professionnelles</SectionHeading>
-          <Field label="Identifiant" error={errors.assocLogin?.message}>
-            <Input {...register("assocLogin")} />
+          {/* --- Association professionnelle MIOBSP --- */}
+          <SectionHeading>Association professionnelle — MIOBSP</SectionHeading>
+          <Field label="Identifiant MIOBSP" error={errors.assocMiobspLogin?.message}>
+            <Input {...register("assocMiobspLogin")} />
           </Field>
-          <Field label="Mot de passe" error={errors.assocPassword?.message}>
-            <Input {...register("assocPassword")} autoComplete="off" />
+          <Field label="Mot de passe MIOBSP" error={errors.assocMiobspPassword?.message}>
+            <Input {...register("assocMiobspPassword")} autoComplete="off" />
+          </Field>
+
+          {/* --- Association professionnelle MIA --- */}
+          <SectionHeading>Association professionnelle — MIA</SectionHeading>
+          <Field label="Identifiant MIA" error={errors.assocMiaLogin?.message}>
+            <Input {...register("assocMiaLogin")} />
+          </Field>
+          <Field label="Mot de passe MIA" error={errors.assocMiaPassword?.message}>
+            <Input {...register("assocMiaPassword")} autoComplete="off" />
           </Field>
 
           {serverError ? (
@@ -382,6 +521,38 @@ export function MemberFormDialog({ agencies, member, open, onOpenChange }: Membe
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Redimensionne une image (côté navigateur) en un carré de `size` px max et
+ * renvoie une data URL JPEG. Évite de stocker des photos trop lourdes en base.
+ */
+function resizeImageToDataUrl(file: File, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode"));
+      img.onload = () => {
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("canvas"));
+          return;
+        }
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {

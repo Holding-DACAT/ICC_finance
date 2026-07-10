@@ -38,6 +38,7 @@ export default async function OnboardingPage() {
           canWrite={canWrite}
           members={employes.members}
           agencies={employes.agencies}
+          companies={employes.companies}
           canEditMembers={canEditMembers}
         />
       ) : (

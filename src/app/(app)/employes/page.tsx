@@ -19,7 +19,7 @@ export default async function EmployesPage({
 
   const { focus } = await searchParams;
   const { role } = session.user;
-  const { members, agencies, kpis, available } = await getEmployesData(session.user);
+  const { members, agencies, companies, kpis, available } = await getEmployesData(session.user);
 
   const canCreate = role === "ADMIN" || role === "RH";
   const canEdit = canCreate || role === "DIRECTEUR_AGENCE";
@@ -54,6 +54,7 @@ export default async function EmployesPage({
         <EmployesClient
           members={members}
           agencies={agencies}
+          companies={companies}
           canCreate={canCreate}
           canEdit={canEdit}
           initialFocusId={focus}

@@ -17,12 +17,29 @@ export const oriasCategories = [
 ] as const;
 export const complianceStatuses = ["A_JOUR", "A_RENOUVELER", "EXPIRE"] as const;
 
+// Photo : URL http(s) ou data URL (image encodée). Plafonnée pour éviter de
+// stocker des images trop lourdes en base (l'upload est redimensionné côté client).
+const MAX_PHOTO_LENGTH = 700_000; // ~500 Ko en base64
+
 export const memberFormSchema = z.object({
   civility: z.string().trim().max(10).optional().or(z.literal("")),
   firstName: z.string().trim().min(1, "Prénom requis").max(80),
   lastName: z.string().trim().min(1, "Nom requis").max(80),
   email: z.string().trim().email("Email invalide").max(160),
+  personalEmail: z
+    .string()
+    .trim()
+    .max(160)
+    .email("Email personnel invalide")
+    .optional()
+    .or(z.literal("")),
   phone: z.string().trim().max(30).optional().or(z.literal("")),
+  photoUrl: z
+    .string()
+    .trim()
+    .max(MAX_PHOTO_LENGTH, "Photo trop volumineuse (max ~500 Ko).")
+    .optional()
+    .or(z.literal("")),
   birthDate: z.string().optional().or(z.literal("")),
   postalAddress: z.string().trim().max(240).optional().or(z.literal("")),
   siren: z.string().trim().max(20).optional().or(z.literal("")),
@@ -32,6 +49,7 @@ export const memberFormSchema = z.object({
   functionSub: z.string().trim().max(160).optional().or(z.literal("")),
   network: z.enum(networkTypes, { message: "Réseau requis" }),
   status: z.enum(memberStatuses).default("ACTIF"),
+  companyId: z.string().optional().or(z.literal("")),
   agencyId: z.string().min(1, "Agence requise"),
   arrivalDate: z.string().min(1, "Date d'arrivée requise"),
   departureDate: z.string().optional().or(z.literal("")),
@@ -44,7 +62,6 @@ export const memberFormSchema = z.object({
   oriasLogin: z.string().trim().max(120).optional().or(z.literal("")),
   oriasPassword: z.string().trim().max(120).optional().or(z.literal("")),
   oriasCategories: z.array(z.enum(oriasCategories)).default([]),
-  oriasRenewalDate: z.string().optional().or(z.literal("")),
   complianceStatus: z.enum(complianceStatuses).default("A_JOUR"),
   rcProInsurer: z.string().trim().max(120).optional().or(z.literal("")),
   rcProPolicy: z.string().trim().max(120).optional().or(z.literal("")),
@@ -56,8 +73,11 @@ export const memberFormSchema = z.object({
     .optional()
     .or(z.literal("")),
   guaranteeExpiry: z.string().optional().or(z.literal("")),
-  assocLogin: z.string().trim().max(120).optional().or(z.literal("")),
-  assocPassword: z.string().trim().max(120).optional().or(z.literal("")),
+  // Associations professionnelles distinctes (accès séparés MIOBSP / MIA).
+  assocMiobspLogin: z.string().trim().max(120).optional().or(z.literal("")),
+  assocMiobspPassword: z.string().trim().max(120).optional().or(z.literal("")),
+  assocMiaLogin: z.string().trim().max(120).optional().or(z.literal("")),
+  assocMiaPassword: z.string().trim().max(120).optional().or(z.literal("")),
 });
 
 export type MemberFormValues = z.infer<typeof memberFormSchema>;

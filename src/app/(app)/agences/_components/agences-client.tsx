@@ -18,11 +18,12 @@ import {
 import { AgencyBulkBar } from "./agency-bulk-bar";
 import { AgencyDetailSheet } from "./agency-detail-sheet";
 import { AgencyFormDialog } from "./agency-form-dialog";
-import type { AgencyDTO, MemberOption } from "../types";
+import type { AgencyDTO, CompanyOption, MemberOption } from "../types";
 
 interface AgencesClientProps {
   agencies: AgencyDTO[];
   memberOptions: MemberOption[];
+  companyOptions: CompanyOption[];
   canWrite: boolean;
   /** Id d'agence à ouvrir automatiquement (deep-link depuis la recherche). */
   initialFocusId?: string;
@@ -31,6 +32,7 @@ interface AgencesClientProps {
 export function AgencesClient({
   agencies,
   memberOptions,
+  companyOptions,
   canWrite,
   initialFocusId,
 }: AgencesClientProps) {
@@ -234,6 +236,7 @@ export function AgencesClient({
       />
       <AgencyFormDialog
         memberOptions={memberOptions}
+        companyOptions={companyOptions}
         agency={formAgency}
         open={formOpen}
         onOpenChange={setFormOpen}
