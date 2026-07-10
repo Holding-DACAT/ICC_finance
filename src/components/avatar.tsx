@@ -5,11 +5,27 @@ interface AvatarProps {
   first?: string | null;
   last?: string | null;
   active?: boolean;
+  /** Photo du collaborateur (URL ou data URL). À défaut : pastille d'initiales. */
+  photoUrl?: string | null;
   className?: string;
 }
 
-/** Pastille d'initiales (cf. charte UI). Grisée si membre inactif. */
-export function Avatar({ first, last, active = true, className }: AvatarProps) {
+/** Photo ou pastille d'initiales (cf. charte UI). Grisée si membre inactif. */
+export function Avatar({ first, last, active = true, photoUrl, className }: AvatarProps) {
+  if (photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt={`${first ?? ""} ${last ?? ""}`.trim() || "Photo"}
+        className={cn(
+          "size-9 shrink-0 rounded-[9px] object-cover",
+          !active && "opacity-60 grayscale",
+          className,
+        )}
+      />
+    );
+  }
   return (
     <div
       className={cn(

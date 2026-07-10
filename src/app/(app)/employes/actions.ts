@@ -31,7 +31,9 @@ function normalize(values: MemberFormValues) {
     firstName: values.firstName,
     lastName: values.lastName.toUpperCase(),
     email: values.email.toLowerCase(),
+    personalEmail: values.personalEmail ? values.personalEmail.toLowerCase() : null,
     phone: values.phone || null,
+    photoUrl: values.photoUrl || null,
     birthDate: values.birthDate ? new Date(values.birthDate) : null,
     postalAddress: values.postalAddress || null,
     siren: values.siren || null,
@@ -42,9 +44,26 @@ function normalize(values: MemberFormValues) {
     network: values.network,
     status: values.status,
     agencyId: values.agencyId,
+    companyId: values.companyId || null,
     arrivalDate: new Date(values.arrivalDate),
     departureDate: values.departureDate ? new Date(values.departureDate) : null,
   };
+}
+
+/**
+ * Rattache le membre à une société : celle choisie explicitement, ou à défaut
+ * la société de l'agence de rattachement.
+ */
+async function resolveCompanyId(
+  agencyId: string,
+  companyId: string | null,
+): Promise<string | null> {
+  if (companyId) return companyId;
+  const agency = await prisma.agency.findUnique({
+    where: { id: agencyId },
+    select: { companyId: true },
+  });
+  return agency?.companyId ?? null;
 }
 
 /** true si au moins un champ d'habilitation/assurance est renseigné. */
@@ -53,15 +72,16 @@ function hasOriasInput(v: MemberFormValues): boolean {
     v.oriasNumber ||
       v.oriasLogin ||
       (v.oriasCategories && v.oriasCategories.length > 0) ||
-      v.oriasRenewalDate ||
       v.rcProInsurer ||
       v.rcProPolicy ||
       v.rcProExpiry ||
       v.guaranteeAmount ||
       v.guaranteeExpiry ||
-      v.assocLogin ||
       v.oriasPassword ||
-      v.assocPassword,
+      v.assocMiobspLogin ||
+      v.assocMiobspPassword ||
+      v.assocMiaLogin ||
+      v.assocMiaPassword,
   );
 }
 
@@ -72,15 +92,16 @@ function normalizeOrias(v: MemberFormValues) {
     oriasLogin: v.oriasLogin || null,
     oriasPassword: v.oriasPassword || null,
     categories: v.oriasCategories ?? [],
-    renewalDate: v.oriasRenewalDate ? new Date(v.oriasRenewalDate) : null,
     status: v.complianceStatus ?? "A_JOUR",
     rcProInsurer: v.rcProInsurer || null,
     rcProPolicy: v.rcProPolicy || null,
     rcProExpiry: v.rcProExpiry ? new Date(v.rcProExpiry) : null,
     guaranteeAmount: v.guaranteeAmount ? Number.parseInt(v.guaranteeAmount, 10) : null,
     guaranteeExpiry: v.guaranteeExpiry ? new Date(v.guaranteeExpiry) : null,
-    assocLogin: v.assocLogin || null,
-    assocPassword: v.assocPassword || null,
+    assocMiobspLogin: v.assocMiobspLogin || null,
+    assocMiobspPassword: v.assocMiobspPassword || null,
+    assocMiaLogin: v.assocMiaLogin || null,
+    assocMiaPassword: v.assocMiaPassword || null,
   };
 }
 
@@ -102,6 +123,7 @@ export async function createMember(values: MemberFormValues): Promise<ActionResu
   if (!allowed) return { ok: false, error: "Accès refusé." };
 
   try {
+    data.companyId = await resolveCompanyId(data.agencyId, data.companyId);
     const member = await prisma.member.create({ data });
     if (hasOriasInput(parsed.data)) {
       await prisma.oriasRegistration.create({
@@ -175,6 +197,7 @@ export async function updateMember(id: string, values: MemberFormValues): Promis
   if (!allowed) return { ok: false, error: "Accès refusé." };
 
   try {
+    data.companyId = await resolveCompanyId(data.agencyId, data.companyId);
     await prisma.member.update({ where: { id }, data });
     // Habilitation : on upserte si des champs sont fournis ou si une inscription existe déjà.
     if (hasOriasInput(parsed.data) || existing.orias) {

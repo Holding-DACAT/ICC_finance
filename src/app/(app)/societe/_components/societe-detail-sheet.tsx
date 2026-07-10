@@ -1,84 +1,84 @@
 "use client";
 
-import { Building2, ExternalLink, Pencil, ShieldCheck, Users } from "lucide-react";
+import { Building2, ExternalLink, Landmark, Pencil, ShieldCheck, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatDate, formatEur } from "@/lib/format";
-import type { AgencyDTO } from "../types";
+import type { SocieteDTO } from "../data";
 
-interface AgencyDetailSheetProps {
-  agency: AgencyDTO | null;
+interface SocieteDetailSheetProps {
+  societe: SocieteDTO | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Ouvre le formulaire d'édition (affiché seulement si fourni). */
-  onEdit?: (agency: AgencyDTO) => void;
+  onEdit?: (societe: SocieteDTO) => void;
 }
 
-export function AgencyDetailSheet({ agency, open, onOpenChange, onEdit }: AgencyDetailSheetProps) {
+export function SocieteDetailSheet({
+  societe,
+  open,
+  onOpenChange,
+  onEdit,
+}: SocieteDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
-        {agency ? (
+        {societe ? (
           <>
             <SheetHeader>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <SheetTitle>{agency.name}</SheetTitle>
+                  <SheetTitle>{societe.name}</SheetTitle>
                   <div className="text-xs text-text-soft">
-                    {agency.type === "FRANCHISE" ? "Franchise" : "Filiale"}
-                    {agency.legalName ? ` · ${agency.legalName}` : ""}
-                    {agency.legalForm ? ` — ${agency.legalForm}` : ""}
+                    {societe.legalForm ?? "—"}
+                    {societe.siren ? ` · SIREN ${societe.siren}` : ""}
                   </div>
                 </div>
                 {onEdit ? (
-                  <Button size="sm" variant="outline" onClick={() => onEdit(agency)}>
+                  <Button size="sm" variant="outline" onClick={() => onEdit(societe)}>
                     <Pencil className="size-3.5" /> Éditer
                   </Button>
                 ) : null}
               </div>
             </SheetHeader>
 
-            <SectionTitle icon={Building2}>Informations</SectionTitle>
+            <SectionTitle icon={Landmark}>Informations</SectionTitle>
             <div className="grid grid-cols-2 gap-2.5">
               <Info label="Statut">
-                <Badge variant={agency.status === "ACTIF" ? "success" : "danger"}>
-                  {agency.status === "ACTIF" ? "ACTIVE" : "INACTIVE"}
+                <Badge variant={societe.status === "ACTIF" ? "success" : "danger"}>
+                  {societe.status === "ACTIF" ? "ACTIVE" : "INACTIVE"}
                 </Badge>
               </Info>
-              <Info label="Société de rattachement" value={agency.companyName ?? "—"} />
-              <Info label="N° ORIAS" value={agency.oriasNumber ?? "—"} />
-              <Info label="SIREN" value={agency.siren ?? "—"} />
-              <Info label="Adresse" value={agency.address ?? "—"} />
-              <Info label="Téléphone" value={agency.phone ?? "—"} />
-              <Info label="Adresse mail" value={agency.email ?? "—"} />
-              <Info label="Membres" value={String(agency.members.length)} />
+              <Info label="N° ORIAS" value={societe.oriasNumber ?? "—"} />
+              <Info label="Adresse" value={societe.address ?? "—"} />
+              <Info label="Téléphone" value={societe.phone ?? "—"} />
+              <Info label="Adresse mail" value={societe.email ?? "—"} />
+              <Info label="Membres" value={String(societe.membersTotal)} />
             </div>
 
-            <SectionTitle icon={ShieldCheck}>Assurances & conformité (société)</SectionTitle>
+            <SectionTitle icon={ShieldCheck}>Assurances &amp; conformité</SectionTitle>
             <div className="space-y-3">
               <ConformiteBlock title="RC Pro">
-                <Info label="Assureur" value={agency.company?.rcProInsurer ?? "—"} />
-                <Info label="Échéance" value={formatDate(agency.company?.rcProExpiry ?? null)} />
+                <Info label="Assureur" value={societe.rcProInsurer ?? "—"} />
+                <Info label="N° police" value={societe.rcProPolicy ?? "—"} />
+                <Info label="Échéance" value={formatDate(societe.rcProExpiry)} />
               </ConformiteBlock>
               <ConformiteBlock title="Garantie financière">
                 <Info
                   label="Montant"
                   value={
-                    agency.company?.guaranteeAmount != null
-                      ? formatEur(agency.company.guaranteeAmount)
-                      : "—"
+                    societe.guaranteeAmount != null ? formatEur(societe.guaranteeAmount) : "—"
                   }
                 />
-                <Info label="Échéance" value={formatDate(agency.company?.guaranteeExpiry ?? null)} />
+                <Info label="Échéance" value={formatDate(societe.guaranteeExpiry)} />
               </ConformiteBlock>
             </div>
 
-            <SectionTitle icon={Users}>Directeur(s) & membres</SectionTitle>
+            <SectionTitle icon={Users}>Direction</SectionTitle>
             <div className="mb-2 flex flex-wrap gap-1.5">
-              {agency.directors.length ? (
-                agency.directors.map((d) => (
+              {societe.directors.length ? (
+                societe.directors.map((d) => (
                   <span key={d.id} className="rounded-md bg-brand-card-soft px-2 py-1 text-xs">
                     {d.name}
                   </span>
@@ -87,21 +87,32 @@ export function AgencyDetailSheet({ agency, open, onOpenChange, onEdit }: Agency
                 <span className="text-sm text-text-soft">Aucun directeur renseigné.</span>
               )}
             </div>
+
+            <SectionTitle icon={Building2}>Agences rattachées</SectionTitle>
             <div className="space-y-1.5">
-              {agency.members.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between rounded-lg bg-card px-3 py-2 text-sm"
-                >
-                  <span>{m.name}</span>
-                  <span className="text-text-soft">{m.functionTitle}</span>
-                </div>
-              ))}
+              {societe.agencies.length ? (
+                societe.agencies.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between rounded-lg bg-card px-3 py-2 text-sm"
+                  >
+                    <span>
+                      {a.name}{" "}
+                      <span className="text-text-soft">
+                        ({a.type === "FRANCHISE" ? "Franchise" : "Filiale"})
+                      </span>
+                    </span>
+                    <Badge variant="neutral">{a.membersCount} membre(s)</Badge>
+                  </div>
+                ))
+              ) : (
+                <span className="text-sm text-text-soft">Aucune agence rattachée.</span>
+              )}
             </div>
 
-            {agency.sharePointUrl ? (
+            {societe.sharePointUrl ? (
               <a
-                href={agency.sharePointUrl}
+                href={societe.sharePointUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"

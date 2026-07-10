@@ -21,11 +21,12 @@ import { contractTypes, memberStatuses } from "@/lib/validations/member";
 import { MemberBulkBar } from "./member-bulk-bar";
 import { MemberDetailSheet } from "./member-detail-sheet";
 import { MemberFormDialog } from "./member-form-dialog";
-import type { AgencyOption, MemberDTO } from "../types";
+import type { AgencyOption, CompanyOption, MemberDTO } from "../types";
 
 interface EmployesClientProps {
   members: MemberDTO[];
   agencies: AgencyOption[];
+  companies: CompanyOption[];
   canCreate: boolean;
   canEdit: boolean;
   /** Id de membre à ouvrir automatiquement (deep-link depuis la recherche). */
@@ -53,6 +54,7 @@ const STATUS_FILTER_LABELS: Record<string, string> = {
 export function EmployesClient({
   members,
   agencies,
+  companies,
   canCreate,
   canEdit,
   initialFocusId,
@@ -111,7 +113,12 @@ export function EmployesClient({
           const m = row.original;
           return (
             <div className="flex items-center gap-3">
-              <Avatar first={m.firstName} last={m.lastName} active={m.status === "ACTIF"} />
+              <Avatar
+                first={m.firstName}
+                last={m.lastName}
+                active={m.status === "ACTIF"}
+                photoUrl={m.photoUrl}
+              />
               <div>
                 <div className="font-bold">
                   {m.lastName} {m.firstName}
@@ -277,6 +284,7 @@ export function EmployesClient({
       />
       <MemberFormDialog
         agencies={agencies}
+        companies={companies}
         member={formMember}
         open={formOpen}
         onOpenChange={setFormOpen}

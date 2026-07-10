@@ -454,6 +454,7 @@ function trainingHours(fonction: string, index: number): number {
 /* ----------------------------- seed principal --------------------------- */
 
 export interface SeedSummary {
+  companies: number;
   agencies: number;
   members: number;
   computers: number;
@@ -482,27 +483,65 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
 
 async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
   await db.$executeRawUnsafe(
-    `TRUNCATE TABLE "TrainingSession", "Training", "OnboardingStep", "OnboardingProcess", "OriasRegistration", "Computer", "AgencyDirector", "Member", "Agency", "Setting" CASCADE`,
+    `TRUNCATE TABLE "TrainingSession", "Training", "OnboardingStep", "OnboardingProcess", "OriasRegistration", "Computer", "AgencyDirector", "CompanyDirector", "Member", "Agency", "Company", "Setting" CASCADE`,
   );
 
-  // --- Agences ---
+  // --- Sociétés (une par raison sociale) ---
+  const companyIdByLegalName = new Map<string, string>();
+  const companyDirectorNames = new Map<string, Set<string>>();
+  {
+    let ci = 0;
+    for (const [, , directors, legalName, legalForm] of AGENCIES) {
+      if (!companyIdByLegalName.has(legalName)) {
+        const company = await db.company.create({
+          data: {
+            name: legalName,
+            legalForm,
+            siren: fakeSiren(legalName),
+            oriasNumber: `ORIAS-${slug(legalName).toUpperCase().slice(0, 6)}`,
+            address: fakeAddress(ci),
+            phone: fakePhone(ci),
+            email: `contact@${slug(legalName)}.fr`,
+            rcProInsurer: "MMA",
+            rcProPolicy: `POL-${slug(legalName).toUpperCase().slice(0, 5)}-2026`,
+            rcProExpiry: new Date("2026-12-31"),
+            guaranteeAmount: 115_000,
+            guaranteeExpiry: new Date("2026-12-31"),
+            status: "ACTIF",
+          },
+        });
+        companyIdByLegalName.set(legalName, company.id);
+        companyDirectorNames.set(legalName, new Set());
+        ci++;
+      }
+      const set = companyDirectorNames.get(legalName)!;
+      for (const d of directors) set.add(d);
+    }
+  }
+
+  // --- Agences (rattachées à leur société) ---
   const agencyIdByName = new Map<string, string>();
+  const companyIdByAgencyName = new Map<string, string>();
   for (let i = 0; i < AGENCIES.length; i++) {
     const [name, type, , legalName, legalForm] = AGENCIES[i];
+    const companyId = companyIdByLegalName.get(legalName)!;
     const agency = await db.agency.create({
       data: {
         name,
         type: mapAgencyType(type),
         status: "ACTIF",
+        companyId,
         legalName,
         legalForm,
         siren: fakeSiren(legalName),
+        oriasNumber: `ORIAS-${slug(legalName).toUpperCase().slice(0, 6)}`,
         phone: fakePhone(i),
         email: `contact@${slug(legalName)}.fr`,
         redevanceExcluded: name === "ICC Développement",
       },
     });
     agencyIdByName.set(name, agency.id);
+    companyIdByAgencyName.set(name, companyId);
   }
 
   // --- Membres (+ ORIAS + formation) ---
@@ -535,6 +574,8 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
         status: mapStatus(statut),
         arrivalDate: new Date(arrivee),
         agencyId,
+        companyId: companyIdByAgencyName.get(agence) ?? null,
+        personalEmail: `${slug(prenom)}.${slug(nom)}@email.com`,
         orias: categories.length
           ? {
               create: {
@@ -547,8 +588,18 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
                 status: "A_JOUR" as ComplianceStatus,
                 rcProInsurer: "MMA",
                 rcProPolicy: `POL-${slug(nom).toUpperCase().slice(0, 5)}-2026`,
-                assocLogin: `${slug(prenom)}.${slug(nom)}`,
-                assocPassword: `Assoc!${slug(nom).slice(0, 4)}2026`,
+                assocMiobspLogin: categories.includes("MIOBSP")
+                  ? `${slug(prenom)}.${slug(nom)}.miobsp`
+                  : null,
+                assocMiobspPassword: categories.includes("MIOBSP")
+                  ? `Miobsp!${slug(nom).slice(0, 4)}2026`
+                  : null,
+                assocMiaLogin: categories.includes("MIA")
+                  ? `${slug(prenom)}.${slug(nom)}.mia`
+                  : null,
+                assocMiaPassword: categories.includes("MIA")
+                  ? `Mia!${slug(nom).slice(0, 4)}2026`
+                  : null,
                 capacityProOk: true,
                 honorabilityOk: true,
               },
@@ -604,6 +655,16 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
     }
   }
 
+  // --- Directeurs/gérants de société (liens N-N) ---
+  for (const [legalName, names] of companyDirectorNames) {
+    const companyId = companyIdByLegalName.get(legalName)!;
+    for (const director of names) {
+      const memberId = findMemberIdByDisplayName(memberIdByKey, director);
+      if (!memberId) continue;
+      await db.companyDirector.create({ data: { companyId, memberId } });
+    }
+  }
+
   // --- Onboarding (nouveaux arrivants) ---
   let onboardingCount = 0;
   for (const ob of ONBOARDINGS) {
@@ -653,6 +714,7 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
   }
 
   return {
+    companies: companyIdByLegalName.size,
     agencies: AGENCIES.length,
     members: MEMBERS.length,
     computers: computerCount,

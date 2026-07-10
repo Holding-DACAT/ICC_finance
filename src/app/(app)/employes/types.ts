@@ -13,7 +13,9 @@ export interface MemberDTO {
   firstName: string;
   lastName: string;
   email: string;
+  personalEmail: string | null;
   phone: string | null;
+  photoUrl: string | null;
   birthDate: string | null;
   postalAddress: string | null;
   siren: string | null;
@@ -23,6 +25,8 @@ export interface MemberDTO {
   functionSub: string | null;
   network: NetworkType;
   status: MemberStatus;
+  companyId: string | null;
+  companyName: string | null;
   agencyId: string;
   agencyName: string;
   agencyLegalName: string | null;
@@ -34,14 +38,15 @@ export interface MemberDTO {
     oriasPassword: string | null;
     categories: string[];
     status: ComplianceStatus;
-    renewalDate: string | null;
     rcProInsurer: string | null;
     rcProPolicy: string | null;
     rcProExpiry: string | null;
     guaranteeAmount: number | null;
     guaranteeExpiry: string | null;
-    assocLogin: string | null;
-    assocPassword: string | null;
+    assocMiobspLogin: string | null;
+    assocMiobspPassword: string | null;
+    assocMiaLogin: string | null;
+    assocMiaPassword: string | null;
   } | null;
   training: { year: number; requiredHours: number; completedHours: number } | null;
   computers: { id: string; name: string; model: string; registrationDate: string }[];
@@ -49,6 +54,13 @@ export interface MemberDTO {
 }
 
 export interface AgencyOption {
+  id: string;
+  name: string;
+  /** Société de rattachement de l'agence (pour dériver la société d'un membre). */
+  companyId: string | null;
+}
+
+export interface CompanyOption {
   id: string;
   name: string;
 }

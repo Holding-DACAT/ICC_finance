@@ -25,10 +25,11 @@ import {
 } from "@/components/ui/select";
 import { agencyFormSchema, type AgencyFormValues } from "@/lib/validations/agency";
 import { createAgency, updateAgency } from "../actions";
-import type { AgencyDTO, MemberOption } from "../types";
+import type { AgencyDTO, CompanyOption, MemberOption } from "../types";
 
 interface AgencyFormDialogProps {
   memberOptions: MemberOption[];
+  companyOptions: CompanyOption[];
   agency?: AgencyDTO | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,17 +41,10 @@ function toFormValues(a: AgencyDTO | null | undefined): AgencyFormValues {
     type: a?.type ?? "FRANCHISE",
     // Les agences n'utilisent que ACTIF/INACTIF (statut « en cours » réservé aux membres).
     status: a?.status === "INACTIF" ? "INACTIF" : "ACTIF",
-    legalName: a?.legalName ?? "",
-    legalForm: a?.legalForm ?? "",
-    siren: a?.siren ?? "",
+    companyId: a?.companyId ?? "",
     address: a?.address ?? "",
     phone: a?.phone ?? "",
     email: a?.email ?? "",
-    oriasNumber: a?.oriasNumber ?? "",
-    rcProInsurer: a?.rcProInsurer ?? "",
-    rcProExpiry: a?.rcProExpiry ? a.rcProExpiry.slice(0, 10) : "",
-    guaranteeAmount: a?.guaranteeAmount != null ? String(a.guaranteeAmount) : "",
-    guaranteeExpiry: a?.guaranteeExpiry ? a.guaranteeExpiry.slice(0, 10) : "",
     sharePointUrl: a?.sharePointUrl ?? "",
     redevanceExcluded: a?.redevanceExcluded ?? false,
     directorIds: a?.directors.map((d) => d.id) ?? [],
@@ -59,6 +53,7 @@ function toFormValues(a: AgencyDTO | null | undefined): AgencyFormValues {
 
 export function AgencyFormDialog({
   memberOptions,
+  companyOptions,
   agency,
   open,
   onOpenChange,
@@ -72,11 +67,15 @@ export function AgencyFormDialog({
     handleSubmit,
     control,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AgencyFormValues>({
     resolver: zodResolver(agencyFormSchema),
     defaultValues: toFormValues(agency),
   });
+
+  const selectedCompanyId = watch("companyId");
+  const selectedCompany = companyOptions.find((c) => c.id === selectedCompanyId) ?? null;
 
   // L'ouverture est pilotée par le parent (clic « Éditer ») : Radix n'appelle pas
   // onOpenChange lors d'un changement programmatique de `open`, donc on réinitialise
@@ -134,24 +133,30 @@ export function AgencyFormDialog({
             />
           </Field>
 
-          <Field label="Raison sociale" error={errors.legalName?.message}>
-            <Input {...register("legalName")} />
+          <Field label="Société de rattachement" error={errors.companyId?.message}>
+            <Controller
+              control={control}
+              name="companyId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || "__none__"}
+                  onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une raison sociale" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucune —</SelectItem>
+                    {companyOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </Field>
-          <Field label="Forme juridique" error={errors.legalForm?.message}>
-            <Input {...register("legalForm")} placeholder="SAS, SARL…" />
-          </Field>
-
-          <Field label="SIREN" error={errors.siren?.message}>
-            <Input {...register("siren")} />
-          </Field>
-          <Field label="Téléphone" error={errors.phone?.message}>
-            <Input {...register("phone")} />
-          </Field>
-
-          <Field label="Adresse mail" error={errors.email?.message}>
-            <Input type="email" {...register("email")} />
-          </Field>
-
           <Field label="Statut">
             <Controller
               control={control}
@@ -169,8 +174,24 @@ export function AgencyFormDialog({
               )}
             />
           </Field>
-          <Field label="N° ORIAS" error={errors.oriasNumber?.message}>
-            <Input {...register("oriasNumber")} />
+
+          {/* Informations juridiques recopiées de la société (lecture seule). */}
+          <div className="col-span-full grid grid-cols-1 gap-3 rounded-lg border border-border bg-card/50 p-3 sm:grid-cols-3">
+            <ReadOnly label="Forme juridique" value={selectedCompany?.legalForm} />
+            <ReadOnly label="SIREN" value={selectedCompany?.siren} />
+            <ReadOnly label="N° ORIAS" value={selectedCompany?.oriasNumber} />
+            <p className="col-span-full text-[11px] text-text-faint">
+              Ces informations proviennent de la société de rattachement (onglet « Société ») et
+              sont renseignées automatiquement. La RC Pro et la garantie financière y sont également
+              gérées.
+            </p>
+          </div>
+
+          <Field label="Téléphone" error={errors.phone?.message}>
+            <Input {...register("phone")} />
+          </Field>
+          <Field label="Adresse mail" error={errors.email?.message}>
+            <Input type="email" {...register("email")} />
           </Field>
 
           <Field label="Adresse" error={errors.address?.message}>
@@ -178,20 +199,6 @@ export function AgencyFormDialog({
           </Field>
           <Field label="Lien SharePoint" error={errors.sharePointUrl?.message}>
             <Input {...register("sharePointUrl")} placeholder="https://…" />
-          </Field>
-
-          <Field label="RC Pro — assureur" error={errors.rcProInsurer?.message}>
-            <Input {...register("rcProInsurer")} />
-          </Field>
-          <Field label="RC Pro — échéance" error={errors.rcProExpiry?.message}>
-            <Input type="date" {...register("rcProExpiry")} />
-          </Field>
-
-          <Field label="Garantie financière (€)" error={errors.guaranteeAmount?.message}>
-            <Input type="number" min="0" {...register("guaranteeAmount")} />
-          </Field>
-          <Field label="Garantie — échéance" error={errors.guaranteeExpiry?.message}>
-            <Input type="date" {...register("guaranteeExpiry")} />
           </Field>
 
           {/* Directeur(s) */}
@@ -291,6 +298,15 @@ function Field({
       <Label>{label}</Label>
       {children}
       {error ? <span className="text-[11px] text-state-danger">{error}</span> : null}
+    </div>
+  );
+}
+
+function ReadOnly({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] text-text-soft">{label}</span>
+      <span className="text-sm font-semibold">{value || "—"}</span>
     </div>
   );
 }
