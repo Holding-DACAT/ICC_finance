@@ -1,9 +1,15 @@
 import { computeComputerStatus } from "@/lib/computer";
 import { prisma } from "@/lib/prisma";
 
+export interface RecruitmentMember {
+  id: string;
+  name: string;
+}
+
 export interface RecruitmentBucket {
   label: string;
   count: number;
+  members: RecruitmentMember[];
 }
 
 export interface LastComputer {
@@ -71,7 +77,9 @@ function emptyData(): DashboardData {
 export async function getDashboardData(): Promise<DashboardData> {
   try {
     const [members, agencies, computers, orias, onboardings, iccDev] = await Promise.all([
-      prisma.member.findMany({ select: { status: true, arrivalDate: true } }),
+      prisma.member.findMany({
+        select: { id: true, firstName: true, lastName: true, status: true, arrivalDate: true },
+      }),
       prisma.agency.findMany({ select: { type: true } }),
       prisma.computer.findMany({
         select: {
@@ -103,13 +111,23 @@ export async function getDashboardData(): Promise<DashboardData> {
     const now = new Date();
     const buckets: RecruitmentBucket[] = [];
     const keyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
-    const counts = new Map<string, number>();
+    const byMonth = new Map<string, RecruitmentMember[]>();
     for (const m of members) {
-      counts.set(keyOf(m.arrivalDate), (counts.get(keyOf(m.arrivalDate)) ?? 0) + 1);
+      const key = keyOf(m.arrivalDate);
+      const list = byMonth.get(key) ?? [];
+      list.push({ id: m.id, name: memberName(m) });
+      byMonth.set(key, list);
     }
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      buckets.push({ label: MONTHS_FR[d.getMonth()], count: counts.get(keyOf(d)) ?? 0 });
+      const monthMembers = (byMonth.get(keyOf(d)) ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name, "fr"),
+      );
+      buckets.push({
+        label: MONTHS_FR[d.getMonth()],
+        count: monthMembers.length,
+        members: monthMembers,
+      });
     }
 
     const lastComputers: LastComputer[] = computers.slice(0, 5).map((c) => ({
