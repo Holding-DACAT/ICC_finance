@@ -1,11 +1,22 @@
 import { redirect } from "next/navigation";
-import { BadgeEuro, FileText, Landmark, LineChart, Percent, Target, Trophy } from "lucide-react";
+import {
+  AlertTriangle,
+  BadgeEuro,
+  CheckCircle2,
+  FileText,
+  FlaskConical,
+  Landmark,
+  LineChart,
+  Percent,
+  Target,
+  Trophy,
+} from "lucide-react";
 
 import { KpiCard } from "@/components/kpi-card";
 import { Section } from "@/components/section";
 import { auth } from "@/auth";
 import { formatEur } from "@/lib/format";
-import { getPilotageData, parseFilters, type StatusSlice } from "@/lib/pilotage";
+import { getPilotageData, parseFilters, type DataSource, type StatusSlice } from "@/lib/pilotage";
 import { PilotageFilters } from "./_components/pilotage-filters";
 import { PilotageChart } from "./_components/pilotage-chart";
 import { LeaderboardTable } from "./_components/leaderboard-table";
@@ -39,12 +50,23 @@ export default async function PilotagePage({
             Production et chiffre d&apos;affaires du réseau — {d.period.label.toLowerCase()}.
           </p>
         </div>
-        {!d.live ? (
-          <span className="rounded-full border border-state-warning/40 bg-state-warning/10 px-3 py-1 text-[11.5px] font-semibold text-state-warning">
-            Données de démonstration (API Actelo non connectée)
-          </span>
-        ) : null}
+        <SourceBadge source={d.source} />
       </div>
+
+      {d.source === "error" && canSetObjectives ? (
+        <div className="rounded-xl border border-state-danger/40 bg-state-danger/10 p-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-state-danger">
+            <AlertTriangle className="size-4" /> Connexion à l&apos;API Actelo en échec
+          </div>
+          <p className="mt-1 text-[12.5px] text-text-soft">
+            Aucune donnée n&apos;a pu être récupérée. Vérifiez le token, le schéma
+            d&apos;authentification et la variable <code>USE_INTEGRATION_MOCKS</code> sur Vercel.
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-md bg-black/25 px-3 py-2 text-[11.5px] text-text-soft">
+            {d.errorMessage}
+          </pre>
+        </div>
+      ) : null}
 
       {/* Filtres */}
       <div className="rounded-xl bg-card p-4 shadow-[0_6px_18px_rgba(0,0,0,0.12)]">
@@ -166,6 +188,35 @@ export default async function PilotagePage({
 }
 
 // --- Sous-composants serveur (markup pur) ----------------------------------
+
+/** Pastille d'état de la source de données : connecté / démo / erreur. */
+function SourceBadge({ source }: { source: DataSource }) {
+  const cfg = {
+    live: {
+      icon: CheckCircle2,
+      text: "Connecté à Actelo",
+      className: "border-state-success/40 bg-state-success/10 text-state-success",
+    },
+    mock: {
+      icon: FlaskConical,
+      text: "Données de démonstration (API Actelo non connectée)",
+      className: "border-state-warning/40 bg-state-warning/10 text-state-warning",
+    },
+    error: {
+      icon: AlertTriangle,
+      text: "API Actelo injoignable",
+      className: "border-state-danger/40 bg-state-danger/10 text-state-danger",
+    },
+  }[source];
+  const Icon = cfg.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold ${cfg.className}`}
+    >
+      <Icon className="size-3.5" /> {cfg.text}
+    </span>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   EN_COURS: "bg-kpi-blue",
