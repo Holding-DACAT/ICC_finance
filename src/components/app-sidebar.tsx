@@ -9,6 +9,7 @@ import {
   KanbanSquare,
   Landmark,
   LayoutDashboard,
+  LineChart,
   LogOut,
   Monitor,
   ScrollText,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/pilotage", label: "Pilotage commercial", icon: LineChart },
   { href: "/onboarding", label: "Onboarding", icon: KanbanSquare },
   { href: "/employes", label: "Équipes", icon: Users },
   { href: "/agences", label: "Agences", icon: Building2 },
