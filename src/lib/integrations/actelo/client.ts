@@ -30,6 +30,19 @@ interface ActeloConfig {
   authPrefix: string;
 }
 
+/**
+ * Résout le préfixe d'authentification. Défaut : `Bearer `. Actelo attend le
+ * token brut (`Authorization: <token>`, sans préfixe) : comme Vercel n'accepte
+ * pas toujours une variable à valeur vide, les valeurs `none` / `vide` / `empty`
+ * sont interprétées comme « aucun préfixe ».
+ */
+function resolveAuthPrefix(): string {
+  const raw = process.env.ACTELO_AUTH_PREFIX;
+  if (raw === undefined) return "Bearer ";
+  if (["none", "vide", "empty", "raw"].includes(raw.trim().toLowerCase())) return "";
+  return raw;
+}
+
 function readConfig(): ActeloConfig {
   const token = process.env.ACTELO_API_TOKEN;
   if (!token) {
@@ -41,7 +54,7 @@ function readConfig(): ActeloConfig {
     baseUrl: (process.env.ACTELO_API_BASE_URL ?? "https://api.actelo.fr").replace(/\/$/, ""),
     token,
     authHeader: process.env.ACTELO_AUTH_HEADER ?? "Authorization",
-    authPrefix: process.env.ACTELO_AUTH_PREFIX ?? "Bearer ",
+    authPrefix: resolveAuthPrefix(),
   };
 }
 
