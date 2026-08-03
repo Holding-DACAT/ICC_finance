@@ -171,9 +171,15 @@ export interface ObjectiveState {
   attainmentRevenue: number; // 0..1+
 }
 
+/** Origine des données affichées, pour diagnostiquer la connexion Actelo. */
+export type DataSource = "live" | "mock" | "error";
+
 export interface PilotageData {
   available: boolean;
-  live: boolean;
+  /** "live" = API Actelo, "mock" = démo, "error" = API configurée mais en échec. */
+  source: DataSource;
+  /** Motif d'erreur (sans secret) quand `source === "error"`. */
+  errorMessage: string | null;
   period: { key: PeriodKey; label: string; from: string; to: string; granularity: Granularity };
   filters: PilotageFilters;
   agencies: SelectOption[];
@@ -476,7 +482,8 @@ export async function getPilotageData(
 
     return {
       available: true,
-      live: provider.kind === "live",
+      source: provider.kind === "live" ? "live" : "mock",
+      errorMessage: null,
       period: {
         key: period.key,
         label: period.label,
@@ -494,8 +501,12 @@ export async function getPilotageData(
       leaderboard,
       objective,
     };
-  } catch {
-    return emptyData(filters, period);
+  } catch (error) {
+    // Une erreur alors que le fournisseur est « live » = problème de connexion
+    // Actelo (token, schéma d'auth, réseau) : on le signale explicitement plutôt
+    // que de retomber silencieusement sur un état « démo » trompeur.
+    const message = error instanceof Error ? error.message : "Erreur inconnue.";
+    return emptyData(filters, period, provider.kind === "live" ? "error" : "mock", message);
   }
 }
 
@@ -512,10 +523,16 @@ function indicativeObjective(dossiers: number, ca: number): ObjectiveState {
   };
 }
 
-function emptyData(filters: PilotageFilters, period: ResolvedPeriod): PilotageData {
+function emptyData(
+  filters: PilotageFilters,
+  period: ResolvedPeriod,
+  source: DataSource = "mock",
+  errorMessage: string | null = null,
+): PilotageData {
   return {
     available: false,
-    live: false,
+    source,
+    errorMessage,
     period: {
       key: period.key,
       label: period.label,
