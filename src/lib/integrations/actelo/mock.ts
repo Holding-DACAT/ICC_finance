@@ -34,12 +34,12 @@ const between = (r: () => number, min: number, max: number): number =>
 
 // --- Référentiels fictifs ---------------------------------------------------
 const AGENCIES: ActeloAgency[] = [
-  { id: "agc_paris", name: "ICC Finance Paris", type: "CLASSIQUE", isActive: true, parentAgencyId: null },
-  { id: "agc_lyon", name: "ICC Finance Lyon", type: "CLASSIQUE", isActive: true, parentAgencyId: null },
-  { id: "agc_bordeaux", name: "ICC Finance Bordeaux", type: "CLASSIQUE", isActive: true, parentAgencyId: null },
-  { id: "agc_lille", name: "ICC Finance Lille", type: "CLASSIQUE", isActive: true, parentAgencyId: null },
-  { id: "agc_marseille", name: "ICC Finance Marseille", type: "CLASSIQUE", isActive: true, parentAgencyId: null },
-  { id: "agc_nantes", name: "ICC Finance Nantes", type: "MANDATAIRE", isActive: true, parentAgencyId: null },
+  { id: "agc_paris", name: "ICC Finance Paris", type: "CLASSIQUE", isActive: true, parentAgencyId: null, mandataryUserId: null },
+  { id: "agc_lyon", name: "ICC Finance Lyon", type: "CLASSIQUE", isActive: true, parentAgencyId: null, mandataryUserId: null },
+  { id: "agc_bordeaux", name: "ICC Finance Bordeaux", type: "CLASSIQUE", isActive: true, parentAgencyId: null, mandataryUserId: null },
+  { id: "agc_lille", name: "ICC Finance Lille", type: "CLASSIQUE", isActive: true, parentAgencyId: null, mandataryUserId: null },
+  { id: "agc_marseille", name: "ICC Finance Marseille", type: "CLASSIQUE", isActive: true, parentAgencyId: null, mandataryUserId: null },
+  { id: "agc_nantes", name: "ICC Finance Nantes", type: "CLASSIQUE", isActive: true, parentAgencyId: null, mandataryUserId: null },
 ];
 
 const FIRST_NAMES = [

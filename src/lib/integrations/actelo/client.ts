@@ -96,6 +96,7 @@ interface RawAgency {
   type?: string;
   isActive?: boolean;
   parentAgencyId?: string | null;
+  mandataryUserId?: string | null;
 }
 
 interface RawUser {
@@ -130,6 +131,7 @@ const toAgency = (a: RawAgency): ActeloAgency => ({
   type: a.type ?? "CLASSIQUE",
   isActive: a.isActive ?? true,
   parentAgencyId: a.parentAgencyId ?? null,
+  mandataryUserId: a.mandataryUserId ?? null,
 });
 
 const toUser = (u: RawUser): ActeloUser => {

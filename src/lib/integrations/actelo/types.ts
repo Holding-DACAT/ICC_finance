@@ -16,10 +16,12 @@
 export interface ActeloAgency {
   id: string;
   name: string;
-  /** Type Actelo (CLASSIQUE, MANDATAIRE…) — informatif. */
+  /** Type Actelo (CLASSIQUE, MANDATAIRE…). Les MANDATAIRE sont individuelles. */
   type: string;
   isActive: boolean;
   parentAgencyId: string | null;
+  /** Renseigné pour une agence individuelle de mandataire (= un collaborateur). */
+  mandataryUserId: string | null;
 }
 
 /** Collaborateur / utilisateur (endpoint `GET /api/v1/users`). */
