@@ -2,7 +2,7 @@
 
 import { useCallback, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarRange, Building2, User, Loader2 } from "lucide-react";
+import { Building2, CalendarRange, Loader2, RotateCcw, User } from "lucide-react";
 
 import {
   Select,
@@ -12,22 +12,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PERIODS, type SelectOption } from "@/lib/pilotage";
-
-const ALL = "__all__";
+import { MultiSelect } from "./multi-select";
 
 interface PilotageFiltersProps {
   period: string;
-  agencyId: string | null;
-  collaboratorId: string | null;
+  agencyIds: string[];
+  collaboratorIds: string[];
+  from: string | null;
+  to: string | null;
   agencies: SelectOption[];
   collaborators: SelectOption[];
   lockedAgencyId: string | null;
 }
 
+const PERSO = "perso";
+
 export function PilotageFilters({
   period,
-  agencyId,
-  collaboratorId,
+  agencyIds,
+  collaboratorIds,
+  from,
+  to,
   agencies,
   collaborators,
   lockedAgencyId,
@@ -41,7 +46,7 @@ export function PilotageFilters({
     (patch: Record<string, string | null>) => {
       const params = new URLSearchParams(searchParams.toString());
       for (const [key, value] of Object.entries(patch)) {
-        if (value === null) params.delete(key);
+        if (value === null || value === "") params.delete(key);
         else params.set(key, value);
       }
       startTransition(() => {
@@ -51,10 +56,15 @@ export function PilotageFilters({
     [router, pathname, searchParams],
   );
 
+  const isCustom = Boolean(from || to);
+
   return (
     <div className="flex flex-wrap items-end gap-3">
       <Field icon={CalendarRange} label="Période">
-        <Select value={period} onValueChange={(v) => update({ periode: v })}>
+        <Select
+          value={isCustom ? PERSO : period}
+          onValueChange={(v) => update({ periode: v, du: null, au: null })}
+        >
           <SelectTrigger className="h-9 w-[190px]">
             <SelectValue />
           </SelectTrigger>
@@ -64,47 +74,66 @@ export function PilotageFilters({
                 {p.label}
               </SelectItem>
             ))}
+            {isCustom ? (
+              <SelectItem value={PERSO} disabled>
+                Personnalisé (dates)
+              </SelectItem>
+            ) : null}
           </SelectContent>
         </Select>
       </Field>
 
-      <Field icon={Building2} label="Agence">
-        <Select
-          value={agencyId ?? ALL}
+      <Field icon={CalendarRange} label="Du">
+        <input
+          type="date"
+          value={from ?? ""}
+          max={to ?? undefined}
+          onChange={(e) => update({ du: e.target.value || null })}
+          className="h-9 rounded-md border border-input bg-popover px-3 text-sm font-medium text-white outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]"
+        />
+      </Field>
+
+      <Field icon={CalendarRange} label="Au">
+        <input
+          type="date"
+          value={to ?? ""}
+          min={from ?? undefined}
+          onChange={(e) => update({ au: e.target.value || null })}
+          className="h-9 rounded-md border border-input bg-popover px-3 text-sm font-medium text-white outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]"
+        />
+      </Field>
+
+      {isCustom ? (
+        <button
+          type="button"
+          onClick={() => update({ du: null, au: null })}
+          className="flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-[12.5px] font-semibold text-text-soft transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <RotateCcw className="size-3.5" /> Dates
+        </button>
+      ) : null}
+
+      <Field icon={Building2} label="Agences">
+        <MultiSelect
+          options={agencies}
+          selected={agencyIds}
           disabled={Boolean(lockedAgencyId)}
-          onValueChange={(v) => update({ agence: v === ALL ? null : v, collaborateur: null })}
-        >
-          <SelectTrigger className="h-9 w-[210px]">
-            <SelectValue placeholder="Toutes les agences" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Toutes les agences</SelectItem>
-            {agencies.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder="Toutes les agences"
+          noun="agence"
+          onChange={(ids) => update({ agence: ids.join(","), collaborateur: null })}
+          className="w-[210px]"
+        />
       </Field>
 
-      <Field icon={User} label="Collaborateur">
-        <Select
-          value={collaboratorId ?? ALL}
-          onValueChange={(v) => update({ collaborateur: v === ALL ? null : v })}
-        >
-          <SelectTrigger className="h-9 w-[210px]">
-            <SelectValue placeholder="Tous les collaborateurs" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Tous les collaborateurs</SelectItem>
-            {collaborators.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <Field icon={User} label="Collaborateurs">
+        <MultiSelect
+          options={collaborators}
+          selected={collaboratorIds}
+          placeholder="Tous les collaborateurs"
+          noun="collaborateur"
+          onChange={(ids) => update({ collaborateur: ids.join(",") })}
+          className="w-[210px]"
+        />
       </Field>
 
       {pending ? (
