@@ -29,7 +29,10 @@ export type PeriodKey =
   | "mois-precedent"
   | "trimestre"
   | "annee-glissante"
-  | "annee-civile";
+  | "annee-civile"
+  | "annee-precedente"
+  | "tout"
+  | "perso";
 
 export const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: "mois", label: "Mois en cours" },
@@ -37,9 +40,14 @@ export const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: "trimestre", label: "Trimestre en cours" },
   { key: "annee-glissante", label: "12 derniers mois" },
   { key: "annee-civile", label: "Année civile" },
+  { key: "annee-precedente", label: "Année précédente" },
+  { key: "tout", label: "Tout l'historique" },
 ];
 
-export type Granularity = "semaine" | "mois";
+/** Début de l'historique retenu pour le préréglage « Tout l'historique ». */
+const HISTORY_START = new Date(2015, 0, 1);
+
+export type Granularity = "semaine" | "mois" | "annee";
 
 export interface ResolvedPeriod {
   key: PeriodKey;
@@ -49,42 +57,78 @@ export interface ResolvedPeriod {
   granularity: Granularity;
 }
 
-export function resolvePeriod(key: PeriodKey): ResolvedPeriod {
+const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+const parseDate = (s: string | null | undefined): Date | null => {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/**
+ * Résout la fenêtre temporelle. Une plage personnalisée (`from`/`to` issus des
+ * champs de date) l'emporte sur le préréglage. La granularité s'adapte à la
+ * durée (semaine / mois / année).
+ */
+export function resolvePeriod(
+  key: PeriodKey,
+  fromStr?: string | null,
+  toStr?: string | null,
+): ResolvedPeriod {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
-  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-  const label = PERIODS.find((p) => p.key === key)?.label ?? "Période";
+
+  const customFrom = parseDate(fromStr);
+  const customTo = parseDate(toStr);
 
   let from: Date;
   let to: Date = endOfDay(now);
+  let label: string;
+  let resolvedKey: PeriodKey = key;
 
-  switch (key) {
-    case "mois":
-      from = new Date(y, m, 1);
-      break;
-    case "mois-precedent":
-      from = new Date(y, m - 1, 1);
-      to = endOfDay(new Date(y, m, 0));
-      break;
-    case "trimestre": {
-      const qStart = Math.floor(m / 3) * 3;
-      from = new Date(y, qStart, 1);
-      break;
+  if (customFrom || customTo) {
+    from = customFrom ? startOfDay(customFrom) : HISTORY_START;
+    to = customTo ? endOfDay(customTo) : endOfDay(now);
+    resolvedKey = "perso";
+    const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    label = `Du ${fmt(from)} au ${fmt(to)}`;
+  } else {
+    label = PERIODS.find((p) => p.key === key)?.label ?? "Période";
+    switch (key) {
+      case "mois":
+        from = new Date(y, m, 1);
+        break;
+      case "mois-precedent":
+        from = new Date(y, m - 1, 1);
+        to = endOfDay(new Date(y, m, 0));
+        break;
+      case "trimestre": {
+        const qStart = Math.floor(m / 3) * 3;
+        from = new Date(y, qStart, 1);
+        break;
+      }
+      case "annee-glissante":
+        from = new Date(y, m - 11, 1);
+        break;
+      case "annee-civile":
+        from = new Date(y, 0, 1);
+        break;
+      case "annee-precedente":
+        from = new Date(y - 1, 0, 1);
+        to = endOfDay(new Date(y - 1, 11, 31));
+        break;
+      case "tout":
+        from = HISTORY_START;
+        break;
+      default:
+        from = new Date(y, m, 1);
     }
-    case "annee-glissante":
-      from = new Date(y, m - 11, 1);
-      break;
-    case "annee-civile":
-      from = new Date(y, 0, 1);
-      break;
-    default:
-      from = new Date(y, m, 1);
   }
 
   const spanDays = (to.getTime() - from.getTime()) / 86_400_000;
-  const granularity: Granularity = spanDays <= 100 ? "semaine" : "mois";
-  return { key, label, from, to, granularity };
+  const granularity: Granularity = spanDays <= 100 ? "semaine" : spanDays <= 800 ? "mois" : "annee";
+  return { key: resolvedKey, label, from, to, granularity };
 }
 
 // --------------------------------------------------------------------------
@@ -121,8 +165,13 @@ export function statusGroup(status: string): StatusGroup {
 // --------------------------------------------------------------------------
 export interface PilotageFilters {
   period: PeriodKey;
-  agencyId: string | null;
-  collaboratorId: string | null;
+  /** Agences sélectionnées (multi). Vide = toutes. */
+  agencyIds: string[];
+  /** Collaborateurs sélectionnés (multi). Vide = tous. */
+  collaboratorIds: string[];
+  /** Bornes de dates personnalisées (ISO `yyyy-mm-dd`), prioritaires sur `period`. */
+  from: string | null;
+  to: string | null;
 }
 
 export interface SelectOption {
@@ -239,13 +288,19 @@ function matchObjective(
       ? period.from.getMonth()
       : null;
 
+  // L'objectif se rapproche quand la sélection cible une seule agence ou un seul
+  // collaborateur ; en multi-sélection on retombe sur l'objectif « réseau ».
+  const singleCollaborator = filters.collaboratorIds.length === 1 ? filters.collaboratorIds[0] : null;
+  const singleAgency =
+    filters.agencyIds.length === 1 && filters.collaboratorIds.length === 0 ? filters.agencyIds[0] : null;
+
   const scoreScope = (o: StoredObjective): number => {
-    if (filters.collaboratorId) {
-      if (o.collaboratorId === filters.collaboratorId) return 3;
+    if (singleCollaborator) {
+      if (o.collaboratorId === singleCollaborator) return 3;
       return -1;
     }
-    if (filters.agencyId) {
-      if (o.agencyId === filters.agencyId && !o.collaboratorId) return 2;
+    if (singleAgency) {
+      if (o.agencyId === singleAgency && !o.collaboratorId) return 2;
       return -1;
     }
     return !o.agencyId && !o.collaboratorId ? 1 : -1;
@@ -297,12 +352,20 @@ interface Bucket {
 
 function buildBuckets(period: ResolvedPeriod): Bucket[] {
   const buckets: Bucket[] = [];
-  if (period.granularity === "mois") {
+  if (period.granularity === "annee") {
+    for (let y = period.from.getFullYear(); y <= period.to.getFullYear(); y++) {
+      const start = new Date(y, 0, 1);
+      const end = new Date(y + 1, 0, 1);
+      buckets.push({ start: start.getTime(), end: end.getTime(), label: String(y) });
+    }
+  } else if (period.granularity === "mois") {
     const cursor = new Date(period.from.getFullYear(), period.from.getMonth(), 1);
     while (cursor <= period.to) {
       const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-      buckets.push({ start: start.getTime(), end: end.getTime(), label: MONTHS_FR[cursor.getMonth()] });
+      // Sur une longue période, préciser l'année (ex. « Jan 24 »).
+      const label = `${MONTHS_FR[cursor.getMonth()]} ${String(cursor.getFullYear()).slice(2)}`;
+      buckets.push({ start: start.getTime(), end: end.getTime(), label });
       cursor.setMonth(cursor.getMonth() + 1);
     }
   } else {
@@ -335,12 +398,14 @@ export async function getPilotageData(
   filters: PilotageFilters,
   user: ScopeUser,
 ): Promise<PilotageData> {
-  const period = resolvePeriod(filters.period);
+  const period = resolvePeriod(filters.period, filters.from, filters.to);
   const provider = getActeloProvider();
 
   const lockedAgencyId = await resolveLockedAgency(user);
-  // Le verrou de périmètre l'emporte toujours sur le filtre choisi dans l'UI.
-  const effectiveAgencyId = lockedAgencyId ?? filters.agencyId;
+  // Le verrou de périmètre l'emporte toujours sur les filtres choisis dans l'UI.
+  const effectiveAgencyIds = lockedAgencyId ? [lockedAgencyId] : filters.agencyIds;
+  const agencySet = new Set(effectiveAgencyIds);
+  const collaboratorSet = new Set(filters.collaboratorIds);
 
   try {
     const [agencies, users, cases, objectives] = await Promise.all([
@@ -367,14 +432,15 @@ export async function getPilotageData(
       .sort((a, b) => a.label.localeCompare(b.label, "fr"));
 
     const collaboratorOptions: SelectOption[] = users
-      .filter((u) => (effectiveAgencyId ? u.agencyIds.includes(effectiveAgencyId) : true))
+      .filter((u) => (agencySet.size ? u.agencyIds.some((id) => agencySet.has(id)) : true))
       .map((u) => ({ id: u.id, label: `${u.lastName} ${u.firstName}`.trim() }))
       .sort((a, b) => a.label.localeCompare(b.label, "fr"));
 
-    // Filtrage des dossiers selon le périmètre + filtres UI.
+    // Filtrage des dossiers selon le périmètre + filtres UI (multi-sélection :
+    // un ensemble vide = « tous »).
     const filtered = cases.filter((c) => {
-      if (effectiveAgencyId && c.agencyId !== effectiveAgencyId) return false;
-      if (filters.collaboratorId && c.managerId !== filters.collaboratorId) return false;
+      if (agencySet.size && (!c.agencyId || !agencySet.has(c.agencyId))) return false;
+      if (collaboratorSet.size && (!c.managerId || !collaboratorSet.has(c.managerId))) return false;
       return true;
     });
 
@@ -500,7 +566,7 @@ export async function getPilotageData(
         to: period.to.toISOString(),
         granularity: period.granularity,
       },
-      filters: { ...filters, agencyId: effectiveAgencyId },
+      filters: { ...filters, agencyIds: effectiveAgencyIds },
       agencies: agencyOptions,
       collaborators: collaboratorOptions,
       lockedAgencyId,
@@ -582,11 +648,24 @@ export function parseFilters(searchParams: Record<string, string | string[] | un
     const s = Array.isArray(v) ? v[0] : v;
     return s && s.length ? s : null;
   };
+  // Listes séparées par des virgules (multi-sélection).
+  const getList = (k: string): string[] => {
+    const raw = get(k);
+    return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  };
+  // Date `yyyy-mm-dd` (issue d'un <input type="date">) validée sommairement.
+  const getDate = (k: string): string | null => {
+    const raw = get(k);
+    return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+  };
+
   const periodRaw = get("periode");
   const period = (PERIODS.find((p) => p.key === periodRaw)?.key ?? "mois") as PeriodKey;
   return {
     period,
-    agencyId: get("agence"),
-    collaboratorId: get("collaborateur"),
+    agencyIds: getList("agence"),
+    collaboratorIds: getList("collaborateur"),
+    from: getDate("du"),
+    to: getDate("au"),
   };
 }

@@ -73,8 +73,10 @@ export default async function PilotagePage({
       <div className="rounded-xl bg-card p-4 shadow-[0_6px_18px_rgba(0,0,0,0.12)]">
         <PilotageFilters
           period={d.period.key}
-          agencyId={d.filters.agencyId}
-          collaboratorId={d.filters.collaboratorId}
+          agencyIds={d.filters.agencyIds}
+          collaboratorIds={d.filters.collaboratorIds}
+          from={d.filters.from}
+          to={d.filters.to}
           agencies={d.agencies}
           collaborators={d.collaborators}
           lockedAgencyId={d.lockedAgencyId}
