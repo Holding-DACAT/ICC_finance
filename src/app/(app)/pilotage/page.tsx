@@ -22,6 +22,8 @@ import { LeaderboardTable } from "./_components/leaderboard-table";
 import { ObjectiveDialog } from "./_components/objective-dialog";
 
 export const dynamic = "force-dynamic";
+// Autorise une exécution serveur plus longue pour les grandes plages de dates.
+export const maxDuration = 60;
 
 const pct = (n: number) => `${Math.round(n * 100)} %`;
 // Montants affichés en entier (séparateur de milliers), sans abréviation « k€ ».
