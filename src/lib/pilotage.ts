@@ -354,7 +354,15 @@ export async function getPilotageData(
     const visibleAgencies = lockedAgencyId
       ? agencies.filter((a) => a.id === lockedAgencyId)
       : agencies;
+    // Le sélecteur « Agence » ne liste que les vraies agences-structures : dans
+    // Actelo, chaque mandataire a sa propre « agence » individuelle (type
+    // MANDATAIRE / `mandataryUserId` renseigné) — ce sont des collaborateurs, pas
+    // des agences, donc on les exclut du filtre agence (ils restent dans le
+    // filtre collaborateur). La correspondance des dossiers reste inchangée.
+    const isStructuralAgency = (a: (typeof agencies)[number]) =>
+      a.isActive !== false && a.type !== "MANDATAIRE" && !a.mandataryUserId;
     const agencyOptions: SelectOption[] = visibleAgencies
+      .filter(isStructuralAgency)
       .map((a) => ({ id: a.id, label: a.name }))
       .sort((a, b) => a.label.localeCompare(b.label, "fr"));
 
