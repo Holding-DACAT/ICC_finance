@@ -383,21 +383,22 @@ export async function getPilotageData(
       const t = new Date(c.createdAt).getTime();
       return t >= period.from.getTime() && t <= period.to.getTime();
     });
-    // Le CA/volume est reconnu à la signature, dans la période.
-    const signedInPeriod = filtered.filter((c) => {
-      if (!c.signDate) return false;
-      const t = new Date(c.signDate).getTime();
-      return t >= period.from.getTime() && t <= period.to.getTime();
-    });
+    // CA/volume rattachés aux dossiers **signés** (statut `11_SIGNE`) créés dans
+    // la période. On s'ancre sur la date de création (fiable) plutôt que sur
+    // `signDate` (souvent absent chez Actelo, même sur un dossier signé).
+    const financedInPeriod = createdInPeriod.filter((c) => FINANCE_STATUSES.has(c.status));
 
     // KPI ---------------------------------------------------------------
     const dossiersTotal = createdInPeriod.length;
     const dossiersEnCours = createdInPeriod.filter((c) => statusGroup(c.status) === "EN_COURS").length;
-    const dossiersFinances = signedInPeriod.length;
-    const volumeFinance = signedInPeriod.reduce((s, c) => s + c.amountBorrowed, 0);
-    const caCommissions = signedInPeriod.reduce((s, c) => s + c.brokerCommission, 0);
+    const dossiersFinances = financedInPeriod.length;
+    const volumeFinance = financedInPeriod.reduce((s, c) => s + c.amountBorrowed, 0);
+    const caCommissions = financedInPeriod.reduce((s, c) => s + c.brokerCommission, 0);
+    // Pipeline = commissions attendues sur les dossiers en cours / acceptés mais
+    // pas encore signés (ni refusés ni abandonnés).
     const caPipeline = createdInPeriod
       .filter((c) => {
+        if (FINANCE_STATUSES.has(c.status)) return false;
         const g = statusGroup(c.status);
         return g === "EN_COURS" || g === "ACCEPTE_FINANCE";
       })
@@ -427,18 +428,18 @@ export async function getPilotageData(
       count: counts.get(key) ?? 0,
     }));
 
-    // Série temporelle (dossiers créés = barres ; CA signé = courbe) ---------
+    // Série temporelle (barres = dossiers créés ; courbe = CA des dossiers
+    // signés), le tout rattaché à la date de création.
     const buckets = buildBuckets(period);
     const series: SeriesPoint[] = buckets.map((b) => {
       let dossiers = 0;
       let ca = 0;
       for (const c of createdInPeriod) {
         const t = new Date(c.createdAt).getTime();
-        if (t >= b.start && t < b.end) dossiers++;
-      }
-      for (const c of signedInPeriod) {
-        const t = c.signDate ? new Date(c.signDate).getTime() : NaN;
-        if (t >= b.start && t < b.end) ca += c.brokerCommission;
+        if (t >= b.start && t < b.end) {
+          dossiers++;
+          if (FINANCE_STATUSES.has(c.status)) ca += c.brokerCommission;
+        }
       }
       return { label: b.label, dossiers, ca };
     });
@@ -464,7 +465,7 @@ export async function getPilotageData(
       row.dossiers++;
       byManager.set(key, row);
     }
-    for (const c of signedInPeriod) {
+    for (const c of financedInPeriod) {
       const key = c.managerId ?? "—";
       const row = byManager.get(key);
       if (!row) continue;

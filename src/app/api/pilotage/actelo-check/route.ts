@@ -141,5 +141,31 @@ export async function GET() {
     })),
   };
 
-  return NextResponse.json({ authScheme: { header: "Authorization", prefix: "" }, agencies, cases });
+  // --- Vérifie que le filtre par date fonctionne (mois en cours). ------------
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const recentRes = await fetchJson<ListLite<RawCaseLite>>(
+    `${base}/api/v1/cases?limit=5&createdAtStart=${encodeURIComponent(monthStart.toISOString())}`,
+    authHeaders,
+  );
+  const recentRaw = recentRes.json?.results ?? recentRes.json?.body ?? [];
+  const recentDates = recentRaw
+    .map((c) => c.meta_created?.at)
+    .filter((d): d is string => Boolean(d))
+    .sort();
+  const casesDateFilter = {
+    error: recentRes.ok ? undefined : recentRes.error,
+    since: monthStart.toISOString(),
+    totalCount: recentRes.json?.count,
+    fetched: recentRaw.length,
+    createdRange: recentDates.length ? { min: recentDates[0], max: recentDates.at(-1) } : null,
+  };
+
+  return NextResponse.json({
+    authScheme: { header: "Authorization", prefix: "" },
+    agencies,
+    cases,
+    casesDateFilter,
+  });
 }
