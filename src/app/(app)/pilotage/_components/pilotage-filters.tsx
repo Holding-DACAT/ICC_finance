@@ -2,7 +2,7 @@
 
 import { useCallback, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Building2, CalendarRange, Loader2, RotateCcw, User } from "lucide-react";
+import { Building2, CalendarClock, CalendarRange, Loader2, RotateCcw, User } from "lucide-react";
 
 import {
   Select,
@@ -11,11 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PERIODS, type SelectOption } from "@/lib/pilotage";
+import { DATE_REFS, PERIODS, type SelectOption } from "@/lib/pilotage";
 import { MultiSelect } from "./multi-select";
 
 interface PilotageFiltersProps {
   period: string;
+  dateRef: string;
   agencyIds: string[];
   collaboratorIds: string[];
   from: string | null;
@@ -29,6 +30,7 @@ const PERSO = "perso";
 
 export function PilotageFilters({
   period,
+  dateRef,
   agencyIds,
   collaboratorIds,
   from,
@@ -60,6 +62,21 @@ export function PilotageFilters({
 
   return (
     <div className="flex flex-wrap items-end gap-3">
+      <Field icon={CalendarClock} label="Référence de date">
+        <Select value={dateRef} onValueChange={(v) => update({ ref: v })}>
+          <SelectTrigger className="h-9 w-[190px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DATE_REFS.map((r) => (
+              <SelectItem key={r.key} value={r.key}>
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
       <Field icon={CalendarRange} label="Période">
         <Select
           value={isCustom ? PERSO : period}

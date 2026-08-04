@@ -15,7 +15,7 @@ import {
 import { KpiCard } from "@/components/kpi-card";
 import { Section } from "@/components/section";
 import { auth } from "@/auth";
-import { getPilotageData, parseFilters, type DataSource, type StatusSlice } from "@/lib/pilotage";
+import { DATE_REFS, getPilotageData, parseFilters, type DataSource, type StatusSlice } from "@/lib/pilotage";
 import { PilotageFilters } from "./_components/pilotage-filters";
 import { PilotageChart } from "./_components/pilotage-chart";
 import { LeaderboardTable } from "./_components/leaderboard-table";
@@ -41,6 +41,8 @@ export default async function PilotagePage({
   const d = await getPilotageData(filters, session.user);
   const canSetObjectives = session.user.role === "ADMIN" || session.user.role === "RH";
   const currentYear = new Date(d.period.from).getFullYear();
+  const dateRefLabel =
+    DATE_REFS.find((r) => r.key === d.filters.dateRef)?.label ?? "Date de création";
 
   return (
     <div className="space-y-5">
@@ -49,6 +51,9 @@ export default async function PilotagePage({
           <h1 className="text-xl font-extrabold">Pilotage commercial</h1>
           <p className="text-sm text-text-soft">
             Production et chiffre d&apos;affaires du réseau — {d.period.label.toLowerCase()}.
+          </p>
+          <p className="mt-0.5 text-[12px] text-text-faint">
+            Dates basées sur : <strong className="text-text-soft">{dateRefLabel.toLowerCase()}</strong>
           </p>
         </div>
         <SourceBadge source={d.source} />
@@ -73,6 +78,7 @@ export default async function PilotagePage({
       <div className="rounded-xl bg-card p-4 shadow-[0_6px_18px_rgba(0,0,0,0.12)]">
         <PilotageFilters
           period={d.period.key}
+          dateRef={d.filters.dateRef}
           agencyIds={d.filters.agencyIds}
           collaboratorIds={d.filters.collaboratorIds}
           from={d.filters.from}

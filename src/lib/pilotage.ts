@@ -18,7 +18,7 @@
 
 import type { Role } from "@prisma/client";
 
-import { getActeloProvider } from "@/lib/integrations/actelo";
+import { getActeloProvider, type ActeloCase } from "@/lib/integrations/actelo";
 import { prisma } from "@/lib/prisma";
 
 // --------------------------------------------------------------------------
@@ -132,6 +132,43 @@ export function resolvePeriod(
 }
 
 // --------------------------------------------------------------------------
+// Référence de date (quelle date rattache un dossier à la période)
+// --------------------------------------------------------------------------
+export type DateRef = "creation" | "signature" | "mandat" | "accord" | "edition";
+
+export const DATE_REFS: { key: DateRef; label: string }[] = [
+  { key: "creation", label: "Date de création" },
+  { key: "signature", label: "Date de signature" },
+  { key: "mandat", label: "Date de mandat" },
+  { key: "accord", label: "Date d'accord banque" },
+  { key: "edition", label: "Date d'édition" },
+];
+
+/** Date d'un dossier selon la référence choisie (null si absente). */
+function referenceDateStr(c: ActeloCase, ref: DateRef): string | null {
+  switch (ref) {
+    case "signature":
+      return c.signDate;
+    case "mandat":
+      return c.mandateDate;
+    case "accord":
+      return c.agreementDate;
+    case "edition":
+      return c.editionDate;
+    case "creation":
+    default:
+      return c.createdAt;
+  }
+}
+
+/**
+ * Marge de création à remonter quand la référence n'est PAS la création :
+ * l'API ne filtre que par date de création, or un dossier signé/édité dans la
+ * période a pu être créé bien avant. On élargit donc la fenêtre de création.
+ */
+const LOOKBACK_MONTHS = 24;
+
+// --------------------------------------------------------------------------
 // Statuts
 // --------------------------------------------------------------------------
 export type StatusGroup = "EN_COURS" | "ACCEPTE_FINANCE" | "REFUSE" | "ABANDONNE";
@@ -172,6 +209,8 @@ export interface PilotageFilters {
   /** Bornes de dates personnalisées (ISO `yyyy-mm-dd`), prioritaires sur `period`. */
   from: string | null;
   to: string | null;
+  /** Date de référence appliquée à la période (création par défaut). */
+  dateRef: DateRef;
 }
 
 export interface SelectOption {
@@ -407,11 +446,23 @@ export async function getPilotageData(
   const agencySet = new Set(effectiveAgencyIds);
   const collaboratorSet = new Set(filters.collaboratorIds);
 
+  // L'API ne filtre que par date de création : si la référence n'est pas la
+  // création, on élargit la fenêtre de création récupérée puis on filtre côté
+  // serveur sur la date de référence choisie.
+  const creationFrom =
+    filters.dateRef === "creation"
+      ? period.from
+      : new Date(
+          period.from.getFullYear(),
+          period.from.getMonth() - LOOKBACK_MONTHS,
+          period.from.getDate(),
+        );
+
   try {
     const [agencies, users, cases, objectives] = await Promise.all([
       provider.listAgencies(),
       provider.listUsers(),
-      provider.listCases({ from: period.from, to: period.to }),
+      provider.listCases({ from: creationFrom, to: period.to }),
       getStoredObjectives(),
     ]);
 
@@ -444,25 +495,32 @@ export async function getPilotageData(
       return true;
     });
 
-    // Un dossier compte dans la « période » via sa date de création.
-    const createdInPeriod = filtered.filter((c) => {
-      const t = new Date(c.createdAt).getTime();
-      return t >= period.from.getTime() && t <= period.to.getTime();
+    // Timestamp de référence d'un dossier (selon la date choisie : création,
+    // signature, mandat…). Null si la date n'existe pas pour ce dossier.
+    const refTime = (c: ActeloCase): number | null => {
+      const s = referenceDateStr(c, filters.dateRef);
+      if (!s) return null;
+      const t = new Date(s).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+
+    // Un dossier compte dans la période si sa date de référence y tombe.
+    const inPeriod = filtered.filter((c) => {
+      const t = refTime(c);
+      return t !== null && t >= period.from.getTime() && t <= period.to.getTime();
     });
-    // CA/volume rattachés aux dossiers **signés** (statut `11_SIGNE`) créés dans
-    // la période. On s'ancre sur la date de création (fiable) plutôt que sur
-    // `signDate` (souvent absent chez Actelo, même sur un dossier signé).
-    const financedInPeriod = createdInPeriod.filter((c) => FINANCE_STATUSES.has(c.status));
+    // Dossiers signés (statut `11_SIGNE`) dans la période → CA / volume.
+    const financedInPeriod = inPeriod.filter((c) => FINANCE_STATUSES.has(c.status));
 
     // KPI ---------------------------------------------------------------
-    const dossiersTotal = createdInPeriod.length;
-    const dossiersEnCours = createdInPeriod.filter((c) => statusGroup(c.status) === "EN_COURS").length;
+    const dossiersTotal = inPeriod.length;
+    const dossiersEnCours = inPeriod.filter((c) => statusGroup(c.status) === "EN_COURS").length;
     const dossiersFinances = financedInPeriod.length;
     const volumeFinance = financedInPeriod.reduce((s, c) => s + c.amountBorrowed, 0);
     const caCommissions = financedInPeriod.reduce((s, c) => s + c.brokerCommission, 0);
     // Pipeline = commissions attendues sur les dossiers en cours / acceptés mais
     // pas encore signés (ni refusés ni abandonnés).
-    const caPipeline = createdInPeriod
+    const caPipeline = inPeriod
       .filter((c) => {
         if (FINANCE_STATUSES.has(c.status)) return false;
         const g = statusGroup(c.status);
@@ -484,7 +542,7 @@ export async function getPilotageData(
     // Répartition par statut (sur les dossiers créés dans la période) --------
     const statusOrder: StatusGroup[] = ["EN_COURS", "ACCEPTE_FINANCE", "REFUSE", "ABANDONNE"];
     const counts = new Map<StatusGroup, number>();
-    for (const c of createdInPeriod) {
+    for (const c of inPeriod) {
       const g = statusGroup(c.status);
       counts.set(g, (counts.get(g) ?? 0) + 1);
     }
@@ -500,9 +558,9 @@ export async function getPilotageData(
     const series: SeriesPoint[] = buckets.map((b) => {
       let dossiers = 0;
       let ca = 0;
-      for (const c of createdInPeriod) {
-        const t = new Date(c.createdAt).getTime();
-        if (t >= b.start && t < b.end) {
+      for (const c of inPeriod) {
+        const t = refTime(c);
+        if (t !== null && t >= b.start && t < b.end) {
           dossiers++;
           if (FINANCE_STATUSES.has(c.status)) ca += c.brokerCommission;
         }
@@ -514,7 +572,7 @@ export async function getPilotageData(
     const userName = new Map(users.map((u) => [u.id, `${u.lastName} ${u.firstName}`.trim()]));
     const agencyName = new Map(agencies.map((a) => [a.id, a.name]));
     const byManager = new Map<string, LeaderRow>();
-    for (const c of createdInPeriod) {
+    for (const c of inPeriod) {
       const key = c.managerId ?? "—";
       const row =
         byManager.get(key) ??
@@ -661,11 +719,14 @@ export function parseFilters(searchParams: Record<string, string | string[] | un
 
   const periodRaw = get("periode");
   const period = (PERIODS.find((p) => p.key === periodRaw)?.key ?? "mois") as PeriodKey;
+  const refRaw = get("ref");
+  const dateRef = (DATE_REFS.find((r) => r.key === refRaw)?.key ?? "creation") as DateRef;
   return {
     period,
     agencyIds: getList("agence"),
     collaboratorIds: getList("collaborateur"),
     from: getDate("du"),
     to: getDate("au"),
+    dateRef,
   };
 }

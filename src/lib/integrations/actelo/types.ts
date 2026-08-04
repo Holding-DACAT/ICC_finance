@@ -59,8 +59,14 @@ export interface ActeloCase {
   brokerCommission: number;
   /** Date de création du dossier (`meta_created.at`), ISO 8601. */
   createdAt: string;
-  /** Date de signature (`stageDates.signDate`) si le dossier est signé, sinon null. */
+  /** Date de signature (`stageDates.signDate` ou déduite de l'historique), sinon null. */
   signDate: string | null;
+  /** Date de mandat (`stageDates.mandateDate_d`). */
+  mandateDate: string | null;
+  /** Date d'accord banque (`stageDates.loanAgreementDate_d`). */
+  agreementDate: string | null;
+  /** Date d'édition (`stageDates.editionDate_d`). */
+  editionDate: string | null;
 }
 
 /** Fenêtre temporelle d'interrogation des dossiers. */
