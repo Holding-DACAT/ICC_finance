@@ -21,7 +21,8 @@ import type {
 } from "./types";
 
 const PAGE_SIZE = 100; // maximum autorisé par l'API.
-const MAX_PAGES = 100; // garde-fou anti-boucle (10 000 dossiers max par fenêtre).
+const MAX_PAGES = 400; // garde-fou anti-boucle (jusqu'à 40 000 enregistrements).
+const CONCURRENCY = 8; // pages récupérées en parallèle (réduit le temps total).
 
 interface ActeloConfig {
   baseUrl: string;
@@ -168,25 +169,47 @@ const toCase = (c: RawCase): ActeloCase => ({
   signDate: c.stageDates?.signDate ?? null,
 });
 
-/** Parcourt toutes les pages d'un endpoint paginé (`limit`/`skip`). */
+const rows = <T>(d: RawList<T>): T[] => d.results ?? d.body ?? [];
+
+/**
+ * Parcourt toutes les pages d'un endpoint paginé (`limit`/`skip`).
+ *
+ * Performance : la première page fournit `count` (total), ce qui permet de
+ * récupérer les pages suivantes **en parallèle** (par lots de `CONCURRENCY`) au
+ * lieu d'un aller-retour série par page — c'est le principal gain de temps
+ * d'affichage. `skip` est omis pour la 1re page (Actelo exige `skip > 0`).
+ */
 async function paginate<T>(
   cfg: ActeloConfig,
   path: string,
   extra: Record<string, string | number | undefined> = {},
 ): Promise<T[]> {
-  const out: T[] = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const skip = page * PAGE_SIZE;
-    const data = await acteloFetch<RawList<T>>(cfg, path, {
-      ...extra,
-      limit: PAGE_SIZE,
-      // Actelo valide `skip` avec un minimum strict (> 0) : on l'omet pour la
-      // première page (skip = 0), sinon la requête est rejetée en 400.
-      skip: skip > 0 ? skip : undefined,
-    });
-    const batch = data.results ?? data.body ?? [];
-    out.push(...batch);
-    if (batch.length < PAGE_SIZE) break;
+  const first = await acteloFetch<RawList<T>>(cfg, path, { ...extra, limit: PAGE_SIZE });
+  const firstRows = rows(first);
+  const out: T[] = [...firstRows];
+  if (firstRows.length < PAGE_SIZE) return out;
+
+  const total = typeof first.count === "number" && first.count > 0 ? first.count : undefined;
+  const totalPages = total ? Math.min(Math.ceil(total / PAGE_SIZE), MAX_PAGES) : MAX_PAGES;
+
+  const pageIndexes: number[] = [];
+  for (let p = 1; p < totalPages; p++) pageIndexes.push(p);
+
+  for (let i = 0; i < pageIndexes.length; i += CONCURRENCY) {
+    const slice = pageIndexes.slice(i, i + CONCURRENCY);
+    const batches = await Promise.all(
+      slice.map((p) =>
+        acteloFetch<RawList<T>>(cfg, path, { ...extra, limit: PAGE_SIZE, skip: p * PAGE_SIZE }),
+      ),
+    );
+    let reachedEnd = false;
+    for (const b of batches) {
+      const arr = rows(b);
+      out.push(...arr);
+      if (arr.length < PAGE_SIZE) reachedEnd = true;
+    }
+    // Quand `count` est inconnu, on s'arrête dès qu'une page est incomplète.
+    if (!total && reachedEnd) break;
   }
   return out;
 }
