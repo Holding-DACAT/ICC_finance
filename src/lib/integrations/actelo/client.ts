@@ -170,10 +170,13 @@ async function paginate<T>(
 ): Promise<T[]> {
   const out: T[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
+    const skip = page * PAGE_SIZE;
     const data = await acteloFetch<RawList<T>>(cfg, path, {
       ...extra,
       limit: PAGE_SIZE,
-      skip: page * PAGE_SIZE,
+      // Actelo valide `skip` avec un minimum strict (> 0) : on l'omet pour la
+      // première page (skip = 0), sinon la requête est rejetée en 400.
+      skip: skip > 0 ? skip : undefined,
     });
     const batch = data.results ?? data.body ?? [];
     out.push(...batch);
