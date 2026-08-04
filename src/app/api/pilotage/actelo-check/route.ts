@@ -5,26 +5,33 @@ import { auth } from "@/auth";
 export const dynamic = "force-dynamic";
 
 /**
- * Outil de **diagnostic d'authentification Actelo** (admin/RH uniquement).
+ * Outil de **diagnostic Actelo** (admin/RH uniquement).
  *
- * Le schéma d'auth exact d'Actelo n'étant pas documenté, cette route essaie les
- * schémas les plus courants contre un endpoint léger (`/api/v1/agencies?limit=1`)
- * et indique lequel renvoie `200`. On configure ensuite `ACTELO_AUTH_HEADER` /
- * `ACTELO_AUTH_PREFIX` en conséquence (un seul redéploiement).
+ * 1. Détecte le schéma d'authentification qui renvoie 200 (`/api/v1/agencies`).
+ * 2. Sonde les vrais endpoints (agences, utilisateurs, dossiers) avec ce schéma
+ *    et renvoie le **code HTTP + le corps de la réponse** (tronqué) — utile pour
+ *    lire le motif exact d'un 400 Bad Request.
  *
- * Sécurité : ne renvoie **jamais** le token, seulement les codes HTTP obtenus.
+ * Sécurité : ne renvoie jamais le token, seulement statuts et corps de réponse.
  */
 
 const SCHEMES: { header: string; prefix: string }[] = [
-  { header: "Authorization", prefix: "Bearer " },
   { header: "Authorization", prefix: "" },
+  { header: "Authorization", prefix: "Bearer " },
   { header: "Authorization", prefix: "Token " },
   { header: "X-API-Key", prefix: "" },
-  { header: "x-api-key", prefix: "" },
   { header: "apikey", prefix: "" },
-  { header: "X-Auth-Token", prefix: "" },
-  { header: "token", prefix: "" },
 ];
+
+async function probe(url: string, headers: Record<string, string>) {
+  try {
+    const res = await fetch(url, { headers: { ...headers, Accept: "application/json" }, cache: "no-store" });
+    const text = await res.text();
+    return { url, status: res.status, ok: res.ok, body: text.slice(0, 600) };
+  } catch (error) {
+    return { url, status: null, ok: false, body: error instanceof Error ? error.message : "Erreur réseau" };
+  }
+}
 
 export async function GET() {
   const session = await auth();
@@ -35,49 +42,39 @@ export async function GET() {
   const token = process.env.ACTELO_API_TOKEN;
   const base = (process.env.ACTELO_API_BASE_URL ?? "https://api.actelo.fr").replace(/\/$/, "");
   if (!token) {
-    return NextResponse.json({ error: "ACTELO_API_TOKEN absent des variables d'environnement." }, { status: 400 });
+    return NextResponse.json({ error: "ACTELO_API_TOKEN absent." }, { status: 400 });
   }
 
-  const url = `${base}/api/v1/agencies?limit=1`;
-  const results: Array<{ header: string; prefix: string; status: number | null; ok: boolean; error?: string }> = [];
-
+  // 1. Schéma d'auth qui fonctionne (contre un endpoint léger connu OK).
+  const authTests: Array<{ header: string; prefix: string; status: number | null; ok: boolean }> = [];
   for (const s of SCHEMES) {
-    try {
-      const res = await fetch(url, {
-        headers: { [s.header]: `${s.prefix}${token}`, Accept: "application/json" },
-        cache: "no-store",
-      });
-      results.push({ header: s.header, prefix: s.prefix, status: res.status, ok: res.ok });
-    } catch (error) {
-      results.push({
-        header: s.header,
-        prefix: s.prefix,
-        status: null,
-        ok: false,
-        error: error instanceof Error ? error.message : "Erreur réseau",
-      });
-    }
+    const r = await probe(`${base}/api/v1/agencies?limit=1`, { [s.header]: `${s.prefix}${token}` });
+    authTests.push({ header: s.header, prefix: s.prefix, status: r.status, ok: r.ok });
   }
+  const working = authTests.find((t) => t.ok) ?? { header: "Authorization", prefix: "" };
+  const authHeaders = { [working.header]: `${working.prefix}${token}` };
 
-  const working = results.find((r) => r.ok);
+  // 2. Sonde des vrais endpoints, avec variantes de paramètres pour isoler un 400.
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+  const to = now.toISOString();
+
+  const endpoints = {
+    agencies_100: await probe(`${base}/api/v1/agencies?limit=100&skip=0`, authHeaders),
+    users_100: await probe(`${base}/api/v1/users?limit=100&skip=0`, authHeaders),
+    users_50: await probe(`${base}/api/v1/users?limit=50&skip=0`, authHeaders),
+    users_noparams: await probe(`${base}/api/v1/users`, authHeaders),
+    users_type: await probe(`${base}/api/v1/users?limit=50&type=SALARIE`, authHeaders),
+    cases_dates: await probe(
+      `${base}/api/v1/cases?limit=100&skip=0&active=true&createdAtStart=${encodeURIComponent(from)}&createdAtEnd=${encodeURIComponent(to)}`,
+      authHeaders,
+    ),
+    cases_min: await probe(`${base}/api/v1/cases?limit=50`, authHeaders),
+  };
 
   return NextResponse.json({
-    endpoint: url,
-    tokenPresent: true,
     tokenLength: token.length,
-    working: working
-      ? {
-          header: working.header,
-          prefix: working.prefix,
-          envToSet: {
-            ACTELO_AUTH_HEADER: working.header,
-            ACTELO_AUTH_PREFIX: working.prefix,
-          },
-        }
-      : null,
-    hint: working
-      ? `Schéma trouvé ✓ — sur Vercel, mettez ACTELO_AUTH_HEADER="${working.header}" et ACTELO_AUTH_PREFIX="${working.prefix}", puis redéployez.`
-      : "Aucun schéma testé n'a renvoyé 200. Le token est probablement invalide/expiré, ou l'accès est restreint (IP, scope). Vérifiez le token côté Actelo.",
-    results,
+    authScheme: { header: working.header, prefix: working.prefix },
+    endpoints,
   });
 }
