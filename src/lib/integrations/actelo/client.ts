@@ -150,6 +150,10 @@ const toUser = (u: RawUser): ActeloUser => {
   };
 };
 
+// Actelo exprime tous les montants en **centimes** (ex. amountBorrowed_d
+// 34255556 = 342 555,56 €). On convertit en euros à la frontière.
+const centsToEur = (v: number | null | undefined): number => (v ?? 0) / 100;
+
 const toCase = (c: RawCase): ActeloCase => ({
   id: c._id,
   ref: c.ref ?? null,
@@ -158,8 +162,8 @@ const toCase = (c: RawCase): ActeloCase => ({
   agencyName: c.agencyName_d ?? null,
   managerId: c.managerId ?? null,
   managerName: c.managerFullName_d ?? null,
-  amountBorrowed: c.amountBorrowed_d ?? 0,
-  brokerCommission: c.brokerCommission_d ?? 0,
+  amountBorrowed: centsToEur(c.amountBorrowed_d),
+  brokerCommission: centsToEur(c.brokerCommission_d),
   createdAt: c.meta_created?.at ?? new Date(0).toISOString(),
   signDate: c.stageDates?.signDate ?? null,
 });

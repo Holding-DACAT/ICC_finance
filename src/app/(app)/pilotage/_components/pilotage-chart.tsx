@@ -14,8 +14,6 @@ import {
 import type { SeriesPoint } from "@/lib/pilotage";
 
 const eur0 = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
-const compactEur = (n: number) =>
-  n >= 1000 ? `${Math.round(n / 1000)} k€` : `${Math.round(n)} €`;
 
 export function PilotageChart({ data }: { data: SeriesPoint[] }) {
   return (
@@ -41,9 +39,9 @@ export function PilotageChart({ data }: { data: SeriesPoint[] }) {
           orientation="right"
           tickLine={false}
           axisLine={false}
-          width={52}
+          width={78}
           tick={{ fill: "hsl(var(--text-soft))", fontSize: 11 }}
-          tickFormatter={compactEur}
+          tickFormatter={eur0}
         />
         <Tooltip
           cursor={{ fill: "rgba(255,255,255,0.05)" }}

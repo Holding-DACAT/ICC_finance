@@ -15,7 +15,6 @@ import {
 import { KpiCard } from "@/components/kpi-card";
 import { Section } from "@/components/section";
 import { auth } from "@/auth";
-import { formatEur } from "@/lib/format";
 import { getPilotageData, parseFilters, type DataSource, type StatusSlice } from "@/lib/pilotage";
 import { PilotageFilters } from "./_components/pilotage-filters";
 import { PilotageChart } from "./_components/pilotage-chart";
@@ -25,8 +24,8 @@ import { ObjectiveDialog } from "./_components/objective-dialog";
 export const dynamic = "force-dynamic";
 
 const pct = (n: number) => `${Math.round(n * 100)} %`;
-const compactEur = (n: number) =>
-  n >= 1000 ? `${Math.round(n / 1000).toLocaleString("fr-FR")} k€` : formatEur(n);
+// Montants affichés en entier (séparateur de milliers), sans abréviation « k€ ».
+const eurFull = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
 
 export default async function PilotagePage({
   searchParams,
@@ -100,14 +99,14 @@ export default async function PilotagePage({
           icon={BadgeEuro}
           iconClassName="bg-kpi-orange"
           label="CA / commissions"
-          value={compactEur(d.kpis.caCommissions)}
-          sub={`Pipeline : ${compactEur(d.kpis.caPipeline)}`}
+          value={eurFull(d.kpis.caCommissions)}
+          sub={`Pipeline : ${eurFull(d.kpis.caPipeline)}`}
         />
         <KpiCard
           icon={Landmark}
           iconClassName="bg-kpi-green"
           label="Volume financé"
-          value={compactEur(d.kpis.volumeFinance)}
+          value={eurFull(d.kpis.volumeFinance)}
           sub="Montant des crédits signés"
         />
         <KpiCard
@@ -168,7 +167,7 @@ export default async function PilotagePage({
             current={d.kpis.caCommissions}
             target={d.objective.targetRevenue}
             attainment={d.objective.attainmentRevenue}
-            format={compactEur}
+            format={eurFull}
           />
         </div>
         {d.objective.source === "indicative" ? (
