@@ -122,7 +122,13 @@ interface RawCase {
   brokerCommission_d?: number | null;
   meta_parent?: { agencyId?: string | null };
   meta_created?: { at?: string | null };
-  stageDates?: { signDate?: string | null };
+  stageDates?: {
+    signDate?: string | null;
+    mandateDate_d?: string | null;
+    loanAgreementDate_d?: string | null;
+    editionDate_d?: string | null;
+  };
+  statusHistory?: Array<{ status?: string; date?: string | null }>;
 }
 
 // --- Projections brut → DTO -------------------------------------------------
@@ -155,6 +161,11 @@ const toUser = (u: RawUser): ActeloUser => {
 // 34255556 = 342 555,56 €). On convertit en euros à la frontière.
 const centsToEur = (v: number | null | undefined): number => (v ?? 0) / 100;
 
+// La date de signature du champ `signDate` est peu fiable : on la complète en
+// cherchant, dans l'historique de statut, la date de passage à « 11_SIGNE ».
+const signFromHistory = (c: RawCase): string | null =>
+  c.statusHistory?.find((h) => h.status === "11_SIGNE")?.date ?? null;
+
 const toCase = (c: RawCase): ActeloCase => ({
   id: c._id,
   ref: c.ref ?? null,
@@ -166,7 +177,10 @@ const toCase = (c: RawCase): ActeloCase => ({
   amountBorrowed: centsToEur(c.amountBorrowed_d),
   brokerCommission: centsToEur(c.brokerCommission_d),
   createdAt: c.meta_created?.at ?? new Date(0).toISOString(),
-  signDate: c.stageDates?.signDate ?? null,
+  signDate: c.stageDates?.signDate ?? signFromHistory(c),
+  mandateDate: c.stageDates?.mandateDate_d ?? null,
+  agreementDate: c.stageDates?.loanAgreementDate_d ?? null,
+  editionDate: c.stageDates?.editionDate_d ?? null,
 });
 
 const rows = <T>(d: RawList<T>): T[] => d.results ?? d.body ?? [];

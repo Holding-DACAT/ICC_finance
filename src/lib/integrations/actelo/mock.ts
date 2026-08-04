@@ -67,6 +67,15 @@ const STATUS_POOL: string[] = [
 ];
 
 const SIGNED_STATUSES = new Set(["11_SIGNE"]);
+const ACCEPTED_OR_SIGNED = new Set([
+  "05_ACCORDE",
+  "06_RDV_BANQUE_EFFECTUE",
+  "07_ATTENTE_ASSURANCE",
+  "08_ATTENTE_EDITION",
+  "09_DELAI_SCRIVENER",
+  "10_ATTENTE_SIGNATURE",
+  "11_SIGNE",
+]);
 
 function buildUsers(): ActeloUser[] {
   const r = rng(4242);
@@ -133,13 +142,21 @@ function buildCases(reference: Date): ActeloCase[] {
         Math.min(6000, Math.max(1200, amountBorrowed * (0.009 + r() * 0.004))),
       );
 
+      const addDays = (base: Date, n: number): string | null => {
+        const d = new Date(base);
+        d.setDate(d.getDate() + n);
+        return d <= reference ? d.toISOString() : null;
+      };
+      const isAccepted = ACCEPTED_OR_SIGNED.has(status);
+
       let signDate: string | null = null;
       if (SIGNED_STATUSES.has(status)) {
-        // Signature 20 à 75 jours après création.
-        const sign = new Date(createdAt);
-        sign.setDate(sign.getDate() + between(r, 20, 75));
-        if (sign <= reference) signDate = sign.toISOString();
+        signDate = addDays(createdAt, between(r, 20, 75)); // signature 20-75 j après création
       }
+      // Dates d'étape simulées (pour illustrer le choix de « référence de date »).
+      const mandateDate = addDays(createdAt, between(r, 2, 12));
+      const agreementDate = isAccepted ? addDays(createdAt, between(r, 15, 45)) : null;
+      const editionDate = signDate ? addDays(createdAt, between(r, 40, 70)) : null;
 
       cases.push({
         id: `case_${counter.toString().padStart(4, "0")}`,
@@ -153,6 +170,9 @@ function buildCases(reference: Date): ActeloCase[] {
         brokerCommission,
         createdAt: createdAt.toISOString(),
         signDate,
+        mandateDate,
+        agreementDate,
+        editionDate,
       });
       counter++;
     }
