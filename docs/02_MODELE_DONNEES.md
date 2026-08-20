@@ -58,6 +58,20 @@ Personne du réseau (salarié, mandataire, franchisé, affilié).
 - compte de connexion (lié à Azure AD), `role` (`Role`), périmètre d'agence (`scopedAgencyId` nullable)
 - distinct de `Member` (un membre n'a pas forcément de compte applicatif).
 
+### Apporteurs d'affaires (`Apporteur`, `ApporteurConvention`, `ApporteurVersement`)
+- `Apporteur` : `name` (unique), `siren` (unique, clé d'identité quand elle existe), `enseigne`,
+  `holderName`, coordonnées, `kbisDate`, `ribReceived` (le RIB lui-même n'est **jamais** stocké),
+  `status`, société ICC de rattachement.
+- `ApporteurConvention` : `number`, `requestedBy`, `signatureStatus`, `conventionDate`, `kbisDate`,
+  titulaire/adresse, société détentrice, et la **règle de rétrocession structurée**
+  (`remunerationType`, `remunerationRate`, `remunerationFixedCents`, `remunerationCapCents`,
+  `remunerationBase`) + `remunerationLabel` (libellé d'origine conservé).
+  Un apporteur peut porter plusieurs conventions (renouvellement, changement d'enseigne).
+- `ApporteurVersement` : ristourne versée pour un dossier — société/agence/commercial,
+  `year`/`month`, `dossierLabel`, `acteloCaseId` (rapprochement Pilotage), montants en
+  **centimes TTC** (`amountCents`, `commissionCents`, `feesCents`), mode et date de paiement,
+  SIREN kbis/facture + `sirenVerified`, `status`, `sourceSheet`/`sourceRow` (traçabilité d'import).
+
 ### Journal d'audit (`AuditLog`)
 - `userId`, `action` (CREATE/UPDATE/DELETE/VIEW), `entity`, `entityId`, `diff` (json), `createdAt`, `ip`
 
@@ -76,7 +90,14 @@ Personne du réseau (salarié, mandataire, franchisé, affilié).
 - `ComplianceStatus` : A_JOUR, A_RENOUVELER, EXPIRE
 - `OnboardingStatus` : AUCUN, EN_COURS, TERMINE
 - `OnboardingStepStatus` : A_FAIRE, EN_COURS, FAIT
-- `Role` : ADMIN, RH, IT, DIRECTEUR_AGENCE, LECTURE
+- `Role` : ADMIN, RH, IT, BACK_OFFICE, DIRECTEUR_AGENCE, LECTURE
+- `ApporteurStatus` : ACTIF, INACTIF
+- `ConventionStatus` : SIGNEE, A_FAIRE, NON_SIGNEE, RESILIEE
+- `RemunerationType` : POURCENTAGE, FORFAIT, AUCUNE, NON_RENSEIGNEE
+- `RemunerationBase` : COMMISSION, HONORAIRES
+- `VersementType` : RISTOURNE, DON, PARRAINAGE
+- `VersementStatus` : A_VERSER, VERSE, ANNULE
+- `PaymentMode` : VIREMENT, CHEQUE, DEDUIT, AUTRE
 
 ## Règles de calcul
 
@@ -87,6 +108,11 @@ Personne du réseau (salarié, mandataire, franchisé, affilié).
   Idem pour RC Pro et garantie financière (l'état le plus défavorable l'emporte).
 - **KPI Employés** : Actifs/Inactifs par `status` ; Franchisés/Affiliés par `network`/type d'agence.
 - **Recrutements (dashboard)** : regroupement des `arrivalDate` par mois sur 6 mois glissants.
+- **Ristourne attendue** = taux × assiette (commission ou honoraires), plafond appliqué ;
+  forfait le cas échéant. Aucun calcul si la règle est `NON_RENSEIGNEE` ou si l'assiette est
+  absente/nulle. **Écart** = versé − attendu, signalé au-delà de 1 € ou 1 % (tolérance d'arrondi).
+- **% CB / % CA** = montant versé ÷ commission perçue / honoraires perçus (jamais de division
+  par zéro : « — » quand l'assiette manque).
 
 ## Jeu de données de démo (seed)
 

@@ -46,7 +46,7 @@ utilisateur Clerk (Dashboard → Users → *Metadata* → *Public*) :
 { "role": "ADMIN", "scopedAgencyId": null }
 ```
 
-Rôles possibles : `ADMIN`, `RH`, `IT`, `DIRECTEUR_AGENCE`, `LECTURE`. Pour un
+Rôles possibles : `ADMIN`, `RH`, `IT`, `BACK_OFFICE`, `DIRECTEUR_AGENCE`, `LECTURE`. Pour un
 `DIRECTEUR_AGENCE`, renseigner `scopedAgencyId` avec l'id de son agence. En
 l'absence de rôle, l'utilisateur est en **LECTURE** (moindre privilège).
 
@@ -91,6 +91,27 @@ Excel/CSV « Liste du Réseau » transmis par le groupe pour alimenter la base d
   `Date départ` → statut INACTIF, `ORIAS`/`N°RCPRO` → inscription ORIAS.
 - **Sécurité/RGPD** : les colonnes de mots de passe (Orias/Afib/Votrasso) ne sont
   **jamais** importées ni stockées ; chaque import est tracé dans le journal d'audit.
+
+## Suivi des apporteurs (back-office)
+
+Onglet **Apporteurs** (`/apporteurs`) : référentiel des apporteurs d'affaires,
+conventions d'apport (règle de rétrocession structurée) et versements de
+ristourne rattachés à un dossier.
+
+- **Accès** : `ADMIN` et `BACK_OFFICE` (saisie complète) ; `DIRECTEUR_AGENCE`
+  en lecture sur sa seule agence et **sans les montants**.
+- **Reprise du classeur Excel** : bouton *Importer* — les feuilles
+  « LISTE DES CONVENTIONS » et « Suivi apporteurs 20XX » (toutes années, y
+  compris les exercices « 20-21 ») sont reconnues automatiquement. L'analyse
+  préalable n'écrit rien ; l'intégration est **idempotente** (feuille + ligne
+  d'origine servent de clé), donc relançable sans créer de doublon.
+- **Aucune coordonnée bancaire n'est reprise** : seul l'indicateur « RIB reçu »
+  est conservé (RGPD).
+- **Contrôles** : convention manquante ou non signée, ristourne due non versée,
+  SIREN/kbis non vérifiés, écart entre le montant versé et la règle de la
+  convention. Ils alimentent aussi la page *Alertes*.
+- **Sorties** : export Excel (feuilles « Suivi apporteurs » + « LISTE DES
+  CONVENTIONS ») et note de ristourne imprimable (PDF via le navigateur).
 
 ## Avancement (feuille de route)
 
