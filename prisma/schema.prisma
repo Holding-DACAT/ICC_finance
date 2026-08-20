@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL") // Neon pooled (runtime Vercel)
-  directUrl = env("DIRECT_URL")   // Neon direct (migrations)
+  directUrl = env("DIRECT_URL") // Neon direct (migrations)
 }
 
 // ----------------------------- Énumérations -----------------------------
@@ -75,6 +75,7 @@ enum Role {
   ADMIN
   RH
   IT
+  BACK_OFFICE
   DIRECTEUR_AGENCE
   LECTURE
 }
@@ -86,14 +87,61 @@ enum AuditAction {
   VIEW
 }
 
+// --------------------------- Apporteurs d'affaires ----------------------
+enum ApporteurStatus {
+  ACTIF
+  INACTIF
+}
+
+/// Cycle de vie de la convention d'apport (colonne « Signature » du suivi).
+enum ConventionStatus {
+  SIGNEE // « OK »
+  A_FAIRE // « A FAIRE »
+  NON_SIGNEE // « NOK »
+  RESILIEE // « STOP »
+}
+
+/// Nature de la rétrocession prévue par la convention.
+enum RemunerationType {
+  POURCENTAGE
+  FORFAIT
+  AUCUNE // « Aucun rétro-commissionnement » (règle explicite)
+  NON_RENSEIGNEE // règle absente du dossier : aucun contrôle d'écart possible
+}
+
+/// Assiette du pourcentage de rétrocession.
+enum RemunerationBase {
+  COMMISSION // commission bancaire perçue (% CB)
+  HONORAIRES // honoraires de courtage perçus (% CA)
+}
+
+enum VersementType {
+  RISTOURNE
+  DON
+  PARRAINAGE
+}
+
+enum VersementStatus {
+  A_VERSER
+  VERSE
+  ANNULE
+}
+
+enum PaymentMode {
+  VIREMENT
+  CHEQUE
+  DEDUIT
+  AUTRE
+}
+
 // ------------------------------- Société --------------------------------
 // Entité juridique (raison sociale) du réseau. Une société regroupe une ou
 // plusieurs agences et porte les informations juridiques et d'assurance
 // (forme juridique, SIREN, ORIAS, RC Pro, garantie financière).
 model Company {
-  id              String   @id @default(cuid())
-  name            String   @unique // raison sociale
-  legalForm       String?          // SAS, SARL...
+  id              String                @id @default(cuid())
+  name            String                @unique // raison sociale
+  legalForm       String? // SAS, SARL...
   siren           String?
   oriasNumber     String?
   address         String?
@@ -105,12 +153,15 @@ model Company {
   guaranteeAmount Int?
   guaranteeExpiry DateTime?
   sharePointUrl   String?
-  status          MemberStatus @default(ACTIF)
+  status          MemberStatus          @default(ACTIF)
   agencies        Agency[]
   members         Member[]
   directors       CompanyDirector[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  apporteurs      Apporteur[]
+  conventions     ApporteurConvention[]
+  versements      ApporteurVersement[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 }
 
 // Directeur(s)/gérant(s) d'une société (association N-N avec les membres).
@@ -120,88 +171,94 @@ model CompanyDirector {
   companyId String
   member    Member  @relation("DirectedCompanies", fields: [memberId], references: [id], onDelete: Cascade)
   memberId  String
+
   @@unique([companyId, memberId])
 }
 
 // ------------------------------- Agence ---------------------------------
 model Agency {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  type              AgencyType
-  status            MemberStatus @default(ACTIF)
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  type                AgencyType
+  status              MemberStatus         @default(ACTIF)
   // Société de rattachement (raison sociale). Les champs juridiques ci-dessous
   // sont une copie dénormalisée renseignée automatiquement depuis la société.
-  company           Company? @relation(fields: [companyId], references: [id])
-  companyId         String?
-  legalName         String?
-  legalForm         String?       // SAS, SARL...
-  siren             String?       // SIREN de la société
-  address           String?
-  phone             String?
-  email             String?
-  oriasNumber       String?
-  rcProInsurer      String?
-  rcProExpiry       DateTime?
-  guaranteeAmount   Int?
-  guaranteeExpiry   DateTime?
-  sharePointUrl     String?
-  redevanceExcluded Boolean  @default(false) // « sans ICC Dev. »
-  members           Member[]
-  directors         AgencyDirector[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  company             Company?             @relation(fields: [companyId], references: [id])
+  companyId           String?
+  legalName           String?
+  legalForm           String? // SAS, SARL...
+  siren               String? // SIREN de la société
+  address             String?
+  phone               String?
+  email               String?
+  oriasNumber         String?
+  rcProInsurer        String?
+  rcProExpiry         DateTime?
+  guaranteeAmount     Int?
+  guaranteeExpiry     DateTime?
+  sharePointUrl       String?
+  redevanceExcluded   Boolean              @default(false) // « sans ICC Dev. »
+  members             Member[]
+  directors           AgencyDirector[]
+  apporteurVersements ApporteurVersement[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
   @@index([companyId])
 }
 
 // Directeur(s) d'agence (un membre peut diriger plusieurs agences ; une agence peut avoir plusieurs directeurs)
 model AgencyDirector {
-  id        String @id @default(cuid())
-  agency    Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  agencyId  String
-  member    Member @relation("DirectedAgencies", fields: [memberId], references: [id], onDelete: Cascade)
-  memberId  String
+  id       String @id @default(cuid())
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId String
+  member   Member @relation("DirectedAgencies", fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+
   @@unique([agencyId, memberId])
 }
 
 // ------------------------------- Membre ---------------------------------
 model Member {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   civility      String?
   firstName     String
   lastName      String
-  email         String   @unique  // e-mail ICC Finance (professionnel)
-  personalEmail String?          // e-mail personnel
+  email         String       @unique // e-mail ICC Finance (professionnel)
+  personalEmail String? // e-mail personnel
   phone         String?
-  photoUrl      String?          // photo du collaborateur (URL ou data URL)
-  birthDate     DateTime?        // date de naissance
-  postalAddress String?          // adresse postale
-  siren         String?          // SIREN (mandataire/franchisé)
-  legalMentions String?          // mentions légales
+  photoUrl      String? // photo du collaborateur (URL ou data URL)
+  birthDate     DateTime? // date de naissance
+  postalAddress String? // adresse postale
+  siren         String? // SIREN (mandataire/franchisé)
+  legalMentions String? // mentions légales
   contractType  ContractType
-  functionTitle String           // ex. "Mandataire", "Directeur d'agence"
-  functionSub   String?          // poste occupé
+  functionTitle String // ex. "Mandataire", "Directeur d'agence"
+  functionSub   String? // poste occupé
   network       NetworkType
   status        MemberStatus @default(ACTIF)
   arrivalDate   DateTime
   departureDate DateTime?
   sharePointUrl String?
-  adObjectId    String?          // identifiant Azure AD
+  adObjectId    String? // identifiant Azure AD
 
-  agency        Agency   @relation(fields: [agencyId], references: [id])
-  agencyId      String
+  agency            Agency            @relation(fields: [agencyId], references: [id])
+  agencyId          String
   // Société de rattachement (raison sociale) — dérivée de l'agence par défaut.
-  company       Company? @relation(fields: [companyId], references: [id])
-  companyId     String?
-  directedAgencies AgencyDirector[] @relation("DirectedAgencies")
+  company           Company?          @relation(fields: [companyId], references: [id])
+  companyId         String?
+  directedAgencies  AgencyDirector[]  @relation("DirectedAgencies")
   directedCompanies CompanyDirector[] @relation("DirectedCompanies")
 
-  orias         OriasRegistration?
-  trainings     Training[]
-  computers     Computer[]       @relation("AssignedComputers")
-  onboarding    OnboardingProcess?
+  orias               OriasRegistration?
+  trainings           Training[]
+  computers           Computer[]           @relation("AssignedComputers")
+  onboarding          OnboardingProcess?
+  apporteurVersements ApporteurVersement[] @relation("CommercialVersements")
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([agencyId])
   @@index([companyId])
   @@index([status])
@@ -209,127 +266,265 @@ model Member {
 
 // ----------------------------- Ordinateur -------------------------------
 model Computer {
-  id               String   @id @default(cuid())
-  name             String   @unique
+  id               String       @id @default(cuid())
+  name             String       @unique
   model            String
-  serialNumber     String   @unique
+  serialNumber     String       @unique
   registrationDate DateTime
   lastSyncDate     DateTime?
-  diskFreePct      Int      @default(0)
+  diskFreePct      Int          @default(0)
   licenseTier      LicenseTier?
-  source           String?  // agent de parc, Intune, manuel
-  assignedMember   Member?  @relation("AssignedComputers", fields: [assignedMemberId], references: [id])
+  source           String? // agent de parc, Intune, manuel
+  assignedMember   Member?      @relation("AssignedComputers", fields: [assignedMemberId], references: [id])
   assignedMemberId String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  @@index([assignedMemberId])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   // statut (ACTIF / A_RENOUVELER / EXPIRE) = dérivé de registrationDate, calculé côté service.
+
+  @@index([assignedMemberId])
 }
 
 // --------------------------- ORIAS / conformité -------------------------
 model OriasRegistration {
-  id               String   @id @default(cuid())
-  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  memberId         String   @unique
-  oriasNumber      String?
-  oriasLogin       String?          // identifiant ORIAS
-  oriasPassword    String?          // mot de passe ORIAS
-  categories       OriasCategory[]
-  registrationDate DateTime?
-  renewalDate      DateTime?
-  status           ComplianceStatus @default(A_JOUR)
-  rcProInsurer     String?          // Assurances — nom assureur
-  rcProPolicy      String?          // Assurances — n° police / contrat
-  rcProExpiry      DateTime?
-  assocLogin       String?          // (hérité) association professionnelle générique
-  assocPassword    String?          // (hérité)
+  id                  String           @id @default(cuid())
+  member              Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId            String           @unique
+  oriasNumber         String?
+  oriasLogin          String? // identifiant ORIAS
+  oriasPassword       String? // mot de passe ORIAS
+  categories          OriasCategory[]
+  registrationDate    DateTime?
+  renewalDate         DateTime?
+  status              ComplianceStatus @default(A_JOUR)
+  rcProInsurer        String? // Assurances — nom assureur
+  rcProPolicy         String? // Assurances — n° police / contrat
+  rcProExpiry         DateTime?
+  assocLogin          String? // (hérité) association professionnelle générique
+  assocPassword       String? // (hérité)
   // Associations professionnelles distinctes (accès séparés).
-  assocMiobspLogin    String?       // Association MIOBSP — identifiant
-  assocMiobspPassword String?       // Association MIOBSP — mot de passe
-  assocMiaLogin       String?       // Association MIA — identifiant
-  assocMiaPassword    String?       // Association MIA — mot de passe
-  guaranteeAmount  Int?
-  guaranteeExpiry  DateTime?
-  capacityProOk    Boolean  @default(false)
-  honorabilityOk   Boolean  @default(false)
-  honorabilityDate DateTime?
-  updatedAt        DateTime @updatedAt
+  assocMiobspLogin    String? // Association MIOBSP — identifiant
+  assocMiobspPassword String? // Association MIOBSP — mot de passe
+  assocMiaLogin       String? // Association MIA — identifiant
+  assocMiaPassword    String? // Association MIA — mot de passe
+  guaranteeAmount     Int?
+  guaranteeExpiry     DateTime?
+  capacityProOk       Boolean          @default(false)
+  honorabilityOk      Boolean          @default(false)
+  honorabilityDate    DateTime?
+  updatedAt           DateTime         @updatedAt
 }
 
 // ------------------------------ Formation -------------------------------
 model Training {
-  id             String   @id @default(cuid())
-  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  id             String            @id @default(cuid())
+  member         Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
   memberId       String
   year           Int
-  requiredHours  Int      @default(15) // 15 DDA / 7 DCI
-  completedHours Int      @default(0)
+  requiredHours  Int               @default(15) // 15 DDA / 7 DCI
+  completedHours Int               @default(0)
   sessions       TrainingSession[]
+
   @@unique([memberId, year])
 }
 
 model TrainingSession {
-  id          String   @id @default(cuid())
-  training    Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  trainingId  String
-  date        DateTime
-  title       String
-  hours       Int
-  provider    String?
+  id             String   @id @default(cuid())
+  training       Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId     String
+  date           DateTime
+  title          String
+  hours          Int
+  provider       String?
   certificateUrl String?
 }
 
 // ------------------------------ Onboarding ------------------------------
 model OnboardingProcess {
-  id           String   @id @default(cuid())
-  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  memberId     String   @unique
+  id           String           @id @default(cuid())
+  member       Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId     String           @unique
   status       OnboardingStatus @default(AUCUN)
-  progress     Int      @default(0)
-  assignedTo   User?    @relation(fields: [assignedToId], references: [id])
+  progress     Int              @default(0)
+  assignedTo   User?            @relation(fields: [assignedToId], references: [id])
   assignedToId String?
   steps        OnboardingStep[]
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime         @updatedAt
 }
 
 model OnboardingStep {
-  id          String   @id @default(cuid())
-  process     OnboardingProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
-  processId   String
-  label       String
-  order       Int
-  status      OnboardingStepStatus @default(A_FAIRE)
-  doneAt      DateTime?
-  doneById    String?
+  id        String               @id @default(cuid())
+  process   OnboardingProcess    @relation(fields: [processId], references: [id], onDelete: Cascade)
+  processId String
+  label     String
+  order     Int
+  status    OnboardingStepStatus @default(A_FAIRE)
+  doneAt    DateTime?
+  doneById  String?
 }
 
 // --------------------------- Compte applicatif --------------------------
 model User {
-  id             String   @id @default(cuid())
-  email          String   @unique
+  id             String              @id @default(cuid())
+  email          String              @unique
   name           String?
-  role           Role     @default(LECTURE)
-  scopedAgencyId String?  // périmètre pour DIRECTEUR_AGENCE
+  role           Role                @default(LECTURE)
+  scopedAgencyId String? // périmètre pour DIRECTEUR_AGENCE
   adObjectId     String?
   onboardings    OnboardingProcess[]
-  createdAt      DateTime @default(now())
+  createdAt      DateTime            @default(now())
 }
 
 // ------------------------------ Audit / Param ---------------------------
 model AuditLog {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   userId    String?
   action    AuditAction
   entity    String
   entityId  String?
   diff      Json?
   ip        String?
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
+
   @@index([entity, entityId])
 }
 
 model Setting {
   id    String @id @default(cuid())
-  key   String @unique   // ex. redevance.silverHT, redevance.goldHT, tva, onboarding.defaultSteps
+  key   String @unique // ex. redevance.silverHT, redevance.goldHT, tva, onboarding.defaultSteps
   value Json
+}
+
+// --------------------------- Apporteurs d'affaires ----------------------
+// Suivi back-office des apporteurs (agences immobilières, mandataires,
+// particuliers) : référentiel de l'apporteur, convention(s) d'apport portant la
+// règle de rétrocession, puis versements de ristourne rattachés à un dossier.
+// Reprise du classeur « Suivi facturation apporteurs » (2020 → aujourd'hui).
+//
+// RGPD : aucune coordonnée bancaire (RIB/IBAN) n'est stockée ici — seul
+// l'indicateur `ribReceived` est conservé (cf. CLAUDE.md §4).
+
+model Apporteur {
+  id          String          @id @default(cuid())
+  name        String          @unique // nom commercial utilisé dans le suivi
+  siren       String?         @unique // clé d'identité quand elle existe
+  enseigne    String? // réseau/enseigne (ORPI, IAD, Century 21…)
+  holderName  String? // titulaire(s) de la convention
+  email       String?
+  phone       String?
+  address     String?
+  postalCode  String?
+  city        String?
+  kbisDate    DateTime?
+  ribReceived Boolean         @default(false) // RIB fourni (numéro non stocké)
+  status      ApporteurStatus @default(ACTIF)
+  notes       String?
+
+  // Société ICC de rattachement principal (ICC FINANCE, ICC DEVELOPPEMENT…).
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  conventions ApporteurConvention[]
+  versements  ApporteurVersement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+}
+
+/// Convention d'apport : porte la règle de rétrocession et son état de signature.
+model ApporteurConvention {
+  id          String    @id @default(cuid())
+  apporteur   Apporteur @relation(fields: [apporteurId], references: [id], onDelete: Cascade)
+  apporteurId String
+
+  number          String? // n° de convention (peut être alphanumérique : ICCD-2023-002)
+  requestedBy     String? // « Demandé par » — commercial à l'origine
+  signatureStatus ConventionStatus @default(A_FAIRE)
+  conventionDate  DateTime?
+  kbisDate        DateTime?
+  holderName      String?
+  address         String?
+  postalCode      String?
+  city            String?
+  endDate         DateTime? // date de résiliation (statut RESILIEE)
+  notes           String?
+
+  // Règle de rétrocession structurée (issue du texte « 30% TTC - Plafond 500€ »).
+  remunerationType       RemunerationType @default(POURCENTAGE)
+  remunerationRate       Float? // 0.30 pour 30 %
+  remunerationFixedCents Int? // forfait TTC en centimes
+  remunerationCapCents   Int? // plafond TTC en centimes
+  remunerationBase       RemunerationBase @default(COMMISSION)
+  remunerationLabel      String? // libellé d'origine conservé pour traçabilité
+
+  // Société détentrice de la convention (ICC LABEGE, ICC MURET…).
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  versements ApporteurVersement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([apporteurId])
+  @@index([signatureStatus])
+  @@index([companyId])
+}
+
+/// Versement de ristourne à un apporteur, rattaché à un dossier client.
+/// Montants stockés en **centimes TTC** (les conventions raisonnent en % TTC).
+model ApporteurVersement {
+  id           String               @id @default(cuid())
+  apporteur    Apporteur            @relation(fields: [apporteurId], references: [id], onDelete: Cascade)
+  apporteurId  String
+  convention   ApporteurConvention? @relation(fields: [conventionId], references: [id])
+  conventionId String?
+
+  // Société qui encaisse (rattachement retenu) + agence/commercial d'origine.
+  company        Company? @relation(fields: [companyId], references: [id])
+  companyId      String?
+  companyLabel   String? // libellé brut du fichier si la société est inconnue
+  agency         Agency?  @relation(fields: [agencyId], references: [id])
+  agencyId       String?
+  commercialName String
+  member         Member?  @relation("CommercialVersements", fields: [memberId], references: [id])
+  memberId       String?
+
+  type  VersementType @default(RISTOURNE)
+  year  Int
+  month Int? // 1-12 (le fichier source n'est pas toujours renseigné)
+
+  dossierLabel String // nom du dossier client
+  acteloCaseId String? // rattachement au dossier Actelo (module Pilotage)
+
+  amountCents     Int  @default(0) // ristourne versée (TTC)
+  commissionCents Int? // commission bancaire perçue
+  feesCents       Int? // honoraires de courtage perçus
+
+  paymentMode     PaymentMode @default(VIREMENT)
+  paymentRef      String? // n° de chèque / référence de virement
+  invoiceReceived Boolean     @default(false)
+  paymentDate     DateTime?
+
+  sirenKbis     String?
+  sirenInvoice  String?
+  sirenVerified Boolean @default(false)
+
+  status      VersementStatus @default(A_VERSER)
+  sourceSheet String? // feuille d'origine lors d'un import (traçabilité)
+  sourceRow   Int? // n° de ligne d'origine (déduplication des reprises)
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([apporteurId])
+  @@index([conventionId])
+  @@index([companyId])
+  @@index([agencyId])
+  @@index([memberId])
+  @@index([year])
+  @@index([status])
 }

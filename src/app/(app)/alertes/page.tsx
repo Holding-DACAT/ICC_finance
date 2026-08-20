@@ -1,14 +1,22 @@
-import { BadgeEuro, Bell, GraduationCap, Monitor, ShieldCheck } from "lucide-react";
+import { BadgeEuro, Bell, GraduationCap, Handshake, Monitor, ShieldCheck } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { KpiCard } from "@/components/kpi-card";
 import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/auth";
 import { getAlerts, type AlertItem } from "@/lib/alerts";
+import { canReadApporteurs } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
 export default async function AlertesPage() {
-  const a = await getAlerts();
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  // Les contrôles apporteurs ne sont calculés que pour les rôles habilités.
+  const showApporteurs = canReadApporteurs(session.user.role);
+  const a = await getAlerts({ includeApporteurs: showApporteurs });
 
   return (
     <div className="space-y-5">
@@ -20,6 +28,15 @@ export default async function AlertesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {showApporteurs ? (
+          <KpiCard
+            icon={Handshake}
+            iconClassName="bg-kpi-blue"
+            label="Apporteurs"
+            value={a.apporteurs.length}
+            sub="Conventions, versements et contrôles SIREN"
+          />
+        ) : null}
         <KpiCard icon={ShieldCheck} iconClassName="bg-kpi-orange" label="ORIAS" value={a.orias.length} sub="Immatriculations en alerte" />
         <KpiCard icon={BadgeEuro} iconClassName="bg-kpi-pink" label="RC Pro" value={a.rcPro.length} sub="Responsabilités civiles à échéance" />
         <KpiCard icon={Monitor} iconClassName="bg-kpi-green" label="Parc" value={a.parc.length} sub="Postes à renouveler / expirés" />
@@ -30,6 +47,9 @@ export default async function AlertesPage() {
       <AlertSection title="RC Pro & garanties" items={a.rcPro} />
       <AlertSection title="Parc informatique" items={a.parc} />
       <AlertSection title="Formation continue" items={a.formation} />
+      {showApporteurs ? (
+        <AlertSection title="Apporteurs d'affaires" items={a.apporteurs} />
+      ) : null}
     </div>
   );
 }

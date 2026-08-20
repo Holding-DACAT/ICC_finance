@@ -58,6 +58,16 @@ critères de recette cochés, et point d'étape avant de continuer.
 - Accessibilité, responsive, i18n FR. **Déploiement Vercel + Neon** : variables d'environnement, `prisma migrate deploy` au build, Vercel Cron configuré. README de déploiement.
 - **Recette** : suite de tests verte, check-list RGPD validée, déploiement documenté.
 
+## Lot 9 — Apporteurs d'affaires (back-office)
+- Modèle `Apporteur` / `ApporteurConvention` / `ApporteurVersement` + rôle `BACK_OFFICE`.
+- Onglet `/apporteurs` : KPI, graphiques, tableau des versements (filtres exercice/statut/société,
+  anomalies), tableau des apporteurs, fiche 360° (identité, conventions, historique).
+- Règle de rétrocession structurée + calcul de la ristourne attendue et des écarts.
+- Reprise idempotente du classeur « Suivi facturation apporteurs » (2020 → aujourd'hui).
+- Export Excel, note de ristourne imprimable, contrôles remontés dans les alertes.
+- **Recette** : import rejouable sans doublon, montants masqués pour un directeur d'agence,
+  écritures tracées à l'audit.
+
 ## Priorités si arbitrage nécessaire
 1. Employés + Agences (RH) → 2. Ordinateurs + Redevance (IT) → 3. Dashboard/Onboarding →
 4. Alertes → 5. Intégrations → 6. Durcissement.

@@ -11,6 +11,7 @@ import type {
   PrismaClient,
 } from "@prisma/client";
 
+import { formatRemunerationRule, parseRemunerationLabel, toCents } from "./apporteur";
 import { ONBOARDING_STAGES } from "./onboarding-stages";
 
 /* =========================================================================
@@ -453,6 +454,171 @@ function trainingHours(fonction: string, index: number): number {
 
 /* ----------------------------- seed principal --------------------------- */
 
+/* --- Apporteurs d'affaires (démo) ---------------------------------------
+   Partenaires fictifs : conventions d'apport et ristournes associées, avec
+   quelques cas volontairement en anomalie (convention manquante, ristourne
+   due, écart avec la règle) pour illustrer les contrôles back-office. */
+interface SeedVersement {
+  year: number;
+  month: number;
+  dossier: string;
+  /** Montant versé, commission bancaire et honoraires perçus (euros TTC). */
+  amount: number;
+  commission: number | null;
+  fees: number | null;
+  company: string;
+  agency: string;
+  commercial: string;
+  paid: boolean;
+}
+
+interface SeedApporteur {
+  name: string;
+  enseigne: string | null;
+  siren: string | null;
+  holder: string | null;
+  address: string;
+  postalCode: string;
+  city: string;
+  kbis: string | null;
+  convention: {
+    number: string;
+    requestedBy: string;
+    status: "SIGNEE" | "A_FAIRE" | "NON_SIGNEE" | "RESILIEE";
+    date: string;
+    /** Libellé d'origine, interprété par `parseRemunerationLabel`. */
+    remuneration: string;
+    company?: string;
+  } | null;
+  versements: SeedVersement[];
+}
+
+const APPORTEURS: SeedApporteur[] = [
+  {
+    name: "AGENCE DES ALLEES",
+    enseigne: "Réseau Sud Immo",
+    siren: "812345671",
+    holder: "MARTIN Claire",
+    address: "18 allées Jean Jaurès",
+    postalCode: "31000",
+    city: "Toulouse",
+    kbis: "2021-03-15",
+    convention: {
+      number: "ICC-2021-004",
+      requestedBy: "Damien CATALA",
+      status: "SIGNEE",
+      date: "2021-04-02",
+      remuneration: "30% TTC - Plafond 500€",
+    },
+    versements: [
+      { year: 2026, month: 1, dossier: "BERNARD", amount: 500, commission: 1800, fees: 2500, company: "ICC Finance", agency: "Colomiers", commercial: "Damien CATALA", paid: true },
+      { year: 2026, month: 3, dossier: "LOPEZ MARIN", amount: 420, commission: 1400, fees: 2000, company: "ICC Finance", agency: "Colomiers", commercial: "Damien CATALA", paid: true },
+      { year: 2026, month: 5, dossier: "NGUYEN", amount: 500, commission: 1650, fees: 2200, company: "ICC Finance", agency: "Colomiers", commercial: "Hugo CARIAT", paid: false },
+    ],
+  },
+  {
+    name: "CABINET RIVES & ASSOCIES",
+    enseigne: null,
+    siren: "823456782",
+    holder: "RIVES Paul",
+    address: "5 rue des Filatiers",
+    postalCode: "31000",
+    city: "Toulouse",
+    kbis: "2019-11-08",
+    convention: {
+      number: "ICC-2019-011",
+      requestedBy: "Antoine LOUBIERE",
+      status: "SIGNEE",
+      date: "2019-11-20",
+      remuneration: "50% TTC - Non plafonnée",
+    },
+    versements: [
+      { year: 2026, month: 2, dossier: "FERRAND", amount: 640, commission: 1280, fees: 2400, company: "ICC Saint Jean", agency: "L'Union", commercial: "Antoine LOUBIERE", paid: true },
+      { year: 2025, month: 11, dossier: "GARCIA PONS", amount: 905, commission: 1810, fees: 3000, company: "ICC Saint Jean", agency: "L'Union", commercial: "Antoine LOUBIERE", paid: true },
+    ],
+  },
+  {
+    name: "HABITAT CONSEIL LABEGE",
+    enseigne: "Habitat Conseil",
+    siren: "834567893",
+    holder: "SERRES Nadia",
+    address: "2 rue de l'Autan",
+    postalCode: "31670",
+    city: "Labège",
+    kbis: "2023-06-01",
+    convention: {
+      number: "ICCL-2023-002",
+      requestedBy: "Laurent LABAU",
+      status: "A_FAIRE",
+      date: "2023-06-14",
+      remuneration: "30% TTC - Non plafonnée",
+      company: "ICC Labège",
+    },
+    versements: [
+      { year: 2026, month: 4, dossier: "ANGLADE", amount: 300, commission: 1000, fees: 3000, company: "ICC Labège", agency: "Labège", commercial: "Laurent LABAU", paid: true },
+      { year: 2026, month: 6, dossier: "PUJOL", amount: 350, commission: 1150, fees: 2600, company: "ICC Labège", agency: "Labège", commercial: "Laurent LABAU", paid: false },
+    ],
+  },
+  {
+    name: "MAISONS DU CANAL",
+    enseigne: "Réseau Occitanie",
+    siren: "845678904",
+    holder: "DUPRE Julien",
+    address: "44 avenue de Muret",
+    postalCode: "31300",
+    city: "Toulouse",
+    kbis: null,
+    convention: {
+      number: "ICCM-2024-007",
+      requestedBy: "Jérôme HILAIRE",
+      status: "SIGNEE",
+      date: "2024-02-05",
+      remuneration: "500€ TTC",
+      company: "ICC Muret",
+    },
+    versements: [
+      { year: 2026, month: 1, dossier: "CAZENAVE", amount: 500, commission: 1500, fees: 2000, company: "ICC Muret", agency: "Muret", commercial: "Jérôme HILAIRE", paid: true },
+      { year: 2026, month: 5, dossier: "SANCHEZ", amount: 750, commission: 1900, fees: 2500, company: "ICC Muret", agency: "Muret", commercial: "Jérôme HILAIRE", paid: true },
+    ],
+  },
+  {
+    name: "PATRIMOINE & PROJETS",
+    enseigne: null,
+    siren: "856789015",
+    holder: "BOISSON Sophie",
+    address: "12 boulevard de Strasbourg",
+    postalCode: "31000",
+    city: "Toulouse",
+    kbis: "2022-09-19",
+    convention: {
+      number: "ICCD-2022-003",
+      requestedBy: "Sylvain GOMEZ",
+      status: "RESILIEE",
+      date: "2022-10-01",
+      remuneration: "Aucun rétro-commissionnement",
+      company: "ICC Développement",
+    },
+    versements: [
+      { year: 2025, month: 5, dossier: "MOREAU", amount: 400, commission: 1300, fees: 2000, company: "ICC Développement", agency: "ICC Développement", commercial: "Sylvain GOMEZ", paid: true },
+    ],
+  },
+  {
+    name: "SUD OUEST TRANSACTIONS",
+    enseigne: "SOT Immobilier",
+    siren: null,
+    holder: null,
+    address: "9 rue Gambetta",
+    postalCode: "33000",
+    city: "Bordeaux",
+    kbis: null,
+    convention: null,
+    versements: [
+      { year: 2026, month: 2, dossier: "LEROY", amount: 450, commission: 1500, fees: 2200, company: "ICC Bordeaux", agency: "Bordeaux", commercial: "Jean-Baptiste BOURIN", paid: true },
+      { year: 2026, month: 6, dossier: "THOMAS", amount: 300, commission: null, fees: 1800, company: "ICC Bordeaux", agency: "Bordeaux", commercial: "Jean-Baptiste BOURIN", paid: false },
+    ],
+  },
+];
+
 export interface SeedSummary {
   companies: number;
   agencies: number;
@@ -464,6 +630,8 @@ export interface SeedSummary {
   directors: number;
   users: number;
   settings: number;
+  apporteurs: number;
+  apporteurVersements: number;
 }
 
 /**
@@ -483,7 +651,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
 
 async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
   await db.$executeRawUnsafe(
-    `TRUNCATE TABLE "TrainingSession", "Training", "OnboardingStep", "OnboardingProcess", "OriasRegistration", "Computer", "AgencyDirector", "CompanyDirector", "Member", "Agency", "Company", "Setting" CASCADE`,
+    `TRUNCATE TABLE "TrainingSession", "Training", "OnboardingStep", "OnboardingProcess", "OriasRegistration", "Computer", "AgencyDirector", "CompanyDirector", "ApporteurVersement", "ApporteurConvention", "Apporteur", "Member", "Agency", "Company", "Setting" CASCADE`,
   );
 
   // --- Sociétés (une par raison sociale) ---
@@ -700,6 +868,86 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
     await db.setting.create({ data: { key: s.key, value: s.value as object } });
   }
 
+  // --- Apporteurs d'affaires (conventions + ristournes) ---
+  let apporteurVersementCount = 0;
+  for (const a of APPORTEURS) {
+    const apporteur = await db.apporteur.create({
+      data: {
+        name: a.name,
+        enseigne: a.enseigne,
+        siren: a.siren,
+        holderName: a.holder,
+        address: a.address,
+        postalCode: a.postalCode,
+        city: a.city,
+        kbisDate: a.kbis ? new Date(a.kbis) : null,
+        ribReceived: a.kbis !== null,
+        status: "ACTIF",
+        companyId: companyIdByLegalName.get(a.versements[0]?.company ?? "") ?? null,
+      },
+    });
+
+    let conventionId: string | null = null;
+    if (a.convention) {
+      // La règle textuelle est structurée à l'import comme à la saisie.
+      const rule = parseRemunerationLabel(a.convention.remuneration);
+      const convention = await db.apporteurConvention.create({
+        data: {
+          apporteurId: apporteur.id,
+          number: a.convention.number,
+          requestedBy: a.convention.requestedBy,
+          signatureStatus: a.convention.status,
+          conventionDate: new Date(a.convention.date),
+          kbisDate: a.kbis ? new Date(a.kbis) : null,
+          holderName: a.holder,
+          address: a.address,
+          postalCode: a.postalCode,
+          city: a.city,
+          endDate: a.convention.status === "RESILIEE" ? new Date("2025-12-31") : null,
+          companyId: a.convention.company
+            ? (companyIdByLegalName.get(a.convention.company) ?? null)
+            : null,
+          remunerationType: rule?.type ?? "AUCUNE",
+          remunerationRate: rule?.rate ?? null,
+          remunerationFixedCents: rule?.fixedCents ?? null,
+          remunerationCapCents: rule?.capCents ?? null,
+          remunerationBase: rule?.base ?? "COMMISSION",
+          remunerationLabel: rule ? formatRemunerationRule(rule) : a.convention.remuneration,
+        },
+      });
+      conventionId = convention.id;
+    }
+
+    for (const v of a.versements) {
+      await db.apporteurVersement.create({
+        data: {
+          apporteurId: apporteur.id,
+          conventionId,
+          companyId: companyIdByLegalName.get(v.company) ?? null,
+          companyLabel: v.company,
+          agencyId: agencyIdByName.get(v.agency) ?? null,
+          commercialName: v.commercial,
+          memberId: findMemberIdByDisplayName(memberIdByKey, v.commercial) ?? null,
+          type: "RISTOURNE",
+          year: v.year,
+          month: v.month,
+          dossierLabel: v.dossier,
+          amountCents: toCents(v.amount) ?? 0,
+          commissionCents: v.commission === null ? null : toCents(v.commission),
+          feesCents: v.fees === null ? null : toCents(v.fees),
+          paymentMode: "VIREMENT",
+          invoiceReceived: v.paid,
+          paymentDate: v.paid ? new Date(v.year, v.month, 12) : null,
+          sirenKbis: a.siren,
+          sirenInvoice: v.paid ? a.siren : null,
+          sirenVerified: a.siren !== null && v.paid,
+          status: v.paid ? "VERSE" : "A_VERSER",
+        },
+      });
+      apporteurVersementCount++;
+    }
+  }
+
   // --- Comptes applicatifs (upsert : conservés entre deux seeds) ---
   const appUsers: { email: string; name: string; role: "ADMIN" }[] = [
     { email: "admin@icc-finance.fr", name: "Administrateur ICC (démo)", role: "ADMIN" },
@@ -724,6 +972,8 @@ async function seedWithin(db: Prisma.TransactionClient): Promise<SeedSummary> {
     directors: directorCount,
     users: appUsers.length,
     settings: settings.length,
+    apporteurs: APPORTEURS.length,
+    apporteurVersements: apporteurVersementCount,
   };
 }
 

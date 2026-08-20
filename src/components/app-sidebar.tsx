@@ -6,6 +6,7 @@ import {
   BadgeEuro,
   Bell,
   Building2,
+  Handshake,
   KanbanSquare,
   Landmark,
   LayoutDashboard,
@@ -29,6 +30,12 @@ const NAV = [
   { href: "/societe", label: "Société", icon: Landmark },
   { href: "/ordinateurs", label: "Ordinateurs", icon: Monitor },
   { href: "/redevance", label: "Redevance info.", icon: BadgeEuro },
+  {
+    href: "/apporteurs",
+    label: "Apporteurs",
+    icon: Handshake,
+    roles: ["ADMIN", "BACK_OFFICE", "DIRECTEUR_AGENCE"],
+  },
 ] as const;
 
 const NAV_SECONDARY = [
@@ -46,9 +53,13 @@ interface AppSidebarProps {
 export function AppSidebar({ userName, roleLabel, role }: AppSidebarProps) {
   const pathname = usePathname();
   const { signOut } = useClerk();
-  const secondary = NAV_SECONDARY.filter(
-    (item) => !("roles" in item) || item.roles.includes(role as "ADMIN" | "RH"),
-  );
+  // Une entrée sans `roles` est visible de tous ; sinon le rôle doit y figurer.
+  const isVisible = (item: { roles?: readonly string[] } | Record<string, unknown>) => {
+    const roles = (item as { roles?: readonly string[] }).roles;
+    return !roles || roles.includes(role);
+  };
+  const primary = NAV.filter(isVisible);
+  const secondary = NAV_SECONDARY.filter(isVisible);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col rounded-r-[18px] bg-brand-sidebar p-4 md:flex">
@@ -65,7 +76,7 @@ export function AppSidebar({ userName, roleLabel, role }: AppSidebarProps) {
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {primary.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link

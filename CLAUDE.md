@@ -9,7 +9,8 @@ Refondre l'outil interne **GESTION RH** d'ICC Finance (réseau de courtage en cr
 - les **ressources humaines** (membres du réseau : salariés, mandataires, franchisés, affiliés) ;
 - la **partie informatique** (parc d'ordinateurs, redevances logicielles Silver/Gold, accès) ;
 - le **suivi des formations** (formation continue DDA/DCI) ;
-- le **suivi des immatriculations ORIAS** (catégories, renouvellement annuel, RC Pro, garantie financière).
+- le **suivi des immatriculations ORIAS** (catégories, renouvellement annuel, RC Pro, garantie financière) ;
+- le **suivi des apporteurs d'affaires** (conventions d'apport, ristournes versées, contrôles back-office).
 
 La spécification détaillée est dans `docs/01_CAHIER_DES_CHARGES.md`.
 La cible visuelle est `reference/icc-finance-gestion-rh.jsx`.
@@ -56,6 +57,7 @@ Les données RH et ORIAS sont des **données personnelles sensibles**.
 | `ADMIN` | Tout (RH + IT + paramétrage) |
 | `RH` | Membres, agences, formations, ORIAS (toutes agences) |
 | `IT` | Parc informatique, redevances, onboarding technique |
+| `BACK_OFFICE` | Apporteurs d'affaires : conventions d'apport et ristournes (montants inclus) |
 | `DIRECTEUR_AGENCE` | Lecture + édition limitée **sur sa seule agence** |
 | `LECTURE` | Lecture seule |
 
